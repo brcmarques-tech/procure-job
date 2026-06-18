@@ -28,6 +28,21 @@ interface PreparedAppUI {
   status: string;
 }
 
+interface TrackerItemUI {
+  id: string;
+  titulo: string;
+  canal: string;
+  status: string;
+  modoEnvio: string;
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  rascunho: "Rascunho",
+  aguardando_envio: "Aguardando envio",
+  enviada: "Enviada",
+  respondida: "Respondida",
+};
+
 interface ProfileResult {
   area: string;
   skills: string[];
@@ -70,6 +85,12 @@ export default function OnboardingPage() {
   const [preparedApps, setPreparedApps] = useState<
     Record<string, PreparedAppUI>
   >({});
+
+  // Tracker (M6)
+  const [trackerLoading, setTrackerLoading] = useState(false);
+  const [funnel, setFunnel] = useState<Record<string, number> | null>(null);
+  const [trackerItems, setTrackerItems] = useState<TrackerItemUI[]>([]);
+  const [respondLoadingId, setRespondLoadingId] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -202,6 +223,35 @@ export default function OnboardingPage() {
       setCopilotError((err as Error).message);
     } finally {
       setSendLoadingId(null);
+    }
+  }
+
+  async function loadTracker() {
+    if (!userId) return;
+    setTrackerLoading(true);
+    try {
+      const res = await fetch(`/api/applications/list?userId=${userId}`);
+      const data = await res.json();
+      if (res.ok) {
+        setFunnel(data.funnel);
+        setTrackerItems(data.items);
+      }
+    } finally {
+      setTrackerLoading(false);
+    }
+  }
+
+  async function simulateResponse(applicationId: string) {
+    setRespondLoadingId(applicationId);
+    try {
+      await fetch("/api/applications/respond", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId }),
+      });
+      await loadTracker();
+    } finally {
+      setRespondLoadingId(null);
     }
   }
 
@@ -587,6 +637,81 @@ export default function OnboardingPage() {
               );
             })}
           </div>
+        </section>
+      )}
+
+      {result && (
+        <section className="mt-12 space-y-4 border-t border-gray-200 pt-8">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-semibold">Acompanhamento</h2>
+            <button
+              onClick={loadTracker}
+              disabled={trackerLoading}
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm disabled:opacity-50"
+            >
+              {trackerLoading ? "Atualizando..." : "Atualizar"}
+            </button>
+          </div>
+
+          {funnel && (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {(["aguardando_envio", "enviada", "respondida", "rascunho"] as const).map(
+                (k) => (
+                  <div
+                    key={k}
+                    className="rounded-lg border border-gray-200 p-3 text-center"
+                  >
+                    <div className="text-2xl font-bold">{funnel[k] ?? 0}</div>
+                    <div className="text-xs text-gray-500">
+                      {STATUS_LABEL[k]}
+                    </div>
+                  </div>
+                ),
+              )}
+            </div>
+          )}
+
+          {trackerItems.length > 0 && (
+            <ul className="space-y-2">
+              {trackerItems.map((item) => (
+                <li
+                  key={item.id}
+                  className="flex items-center justify-between gap-4 rounded-lg border border-gray-200 p-3"
+                >
+                  <div>
+                    <p className="text-sm font-medium">{item.titulo}</p>
+                    <p className="text-xs text-gray-400">
+                      {item.canal} · {item.modoEnvio}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs ${
+                        item.status === "respondida"
+                          ? "bg-blue-100 text-blue-700"
+                          : item.status === "enviada"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-amber-100 text-amber-700"
+                      }`}
+                    >
+                      {STATUS_LABEL[item.status] ?? item.status}
+                    </span>
+                    {item.status === "enviada" && (
+                      <button
+                        onClick={() => simulateResponse(item.id)}
+                        disabled={respondLoadingId === item.id}
+                        className="rounded-lg border border-gray-300 px-3 py-1 text-xs disabled:opacity-50"
+                      >
+                        {respondLoadingId === item.id
+                          ? "..."
+                          : "Simular resposta"}
+                      </button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       )}
     </main>
