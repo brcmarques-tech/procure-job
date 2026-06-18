@@ -70,3 +70,52 @@ export async function placeBid(
   const data = await res.json();
   return data?.result;
 }
+
+/**
+ * Projetos-mock no formato da API do Freelancer.
+ * Usados quando não há FREELANCER_OAUTH_TOKEN, para testar o pipeline de
+ * caça+scoring sem depender da integração real. Inclui vagas fora do perfil
+ * de propósito, para validar que o scoring as descarta.
+ */
+export const MOCK_PROJECTS: FreelancerProject[] = [
+  {
+    id: 90001,
+    title: "Build a Next.js + TypeScript admin dashboard",
+    description:
+      "Looking for a React/Next.js developer to build an admin dashboard consuming our REST API. Charts, filters, role-based access. Clean, responsive components.",
+    budget: { minimum: 1200, maximum: 2500 },
+    jobs: [{ name: "React" }, { name: "Next.js" }, { name: "TypeScript" }],
+  },
+  {
+    id: 90002,
+    title: "Stripe payment integration for an e-commerce",
+    description:
+      "Need to integrate Stripe checkout and webhooks into an existing Node.js backend. Experience with payment flows required.",
+    budget: { minimum: 500, maximum: 1000 },
+    jobs: [{ name: "Node.js" }, { name: "Stripe" }, { name: "API" }],
+  },
+  {
+    id: 90003,
+    title: "Full stack developer for a PostgreSQL-backed SaaS",
+    description:
+      "Ongoing work on a SaaS product. Stack is Next.js, Node and PostgreSQL. Looking for someone reliable for features and bug fixes.",
+    budget: { minimum: 2000, maximum: 4000 },
+    jobs: [{ name: "Node.js" }, { name: "PostgreSQL" }, { name: "React" }],
+  },
+  {
+    id: 90004,
+    title: "Design a logo for a coffee brand",
+    description:
+      "We need a creative logo and brand colors for a new specialty coffee shop. Vector deliverables.",
+    budget: { minimum: 80, maximum: 200 },
+    jobs: [{ name: "Logo Design" }, { name: "Illustrator" }],
+  },
+  {
+    id: 90005,
+    title: "Manual data entry from PDFs to Excel",
+    description:
+      "Simple, repetitive data entry. Copy values from ~300 PDF invoices into a spreadsheet. No technical skills required.",
+    budget: { minimum: 30, maximum: 80 },
+    jobs: [{ name: "Data Entry" }, { name: "Excel" }],
+  },
+];

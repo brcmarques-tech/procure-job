@@ -10,6 +10,15 @@ interface ProposalResult {
   pontosFortes: string[];
 }
 
+interface HuntedJobUI {
+  externalId: string;
+  titulo: string;
+  budget: string | null;
+  score: number;
+  motivo: string;
+  elegivel: boolean;
+}
+
 interface ProfileResult {
   area: string;
   skills: string[];
@@ -38,6 +47,12 @@ export default function OnboardingPage() {
   const [propLoadingId, setPropLoadingId] = useState<string | null>(null);
   const [propError, setPropError] = useState<string | null>(null);
   const [proposals, setProposals] = useState<Record<string, ProposalResult>>({});
+
+  // Caça de vagas (M3)
+  const [huntLoading, setHuntLoading] = useState(false);
+  const [huntError, setHuntError] = useState<string | null>(null);
+  const [huntMode, setHuntMode] = useState<string | null>(null);
+  const [huntedJobs, setHuntedJobs] = useState<HuntedJobUI[]>([]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -105,6 +120,27 @@ export default function OnboardingPage() {
       setPropError((err as Error).message);
     } finally {
       setPropLoadingId(null);
+    }
+  }
+
+  async function runHunt() {
+    if (!userId) return;
+    setHuntLoading(true);
+    setHuntError(null);
+    try {
+      const res = await fetch("/api/jobs/hunt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro desconhecido.");
+      setHuntMode(data.mode);
+      setHuntedJobs(data.jobs);
+    } catch (err) {
+      setHuntError((err as Error).message);
+    } finally {
+      setHuntLoading(false);
     }
   }
 
@@ -276,6 +312,71 @@ export default function OnboardingPage() {
                 className="h-[600px] w-full rounded-lg border border-gray-300"
               />
             </div>
+          )}
+        </section>
+      )}
+
+      {result && (
+        <section className="mt-12 space-y-4 border-t border-gray-200 pt-8">
+          <h2 className="text-2xl font-semibold">
+            Caça de vagas (Freelancer.com)
+          </h2>
+          <p className="text-gray-500">
+            A IA busca vagas e pontua a compatibilidade com seu perfil (0–100).
+            Vagas abaixo de 60 são descartadas.
+          </p>
+
+          <button
+            onClick={runHunt}
+            disabled={huntLoading}
+            className="rounded-lg bg-black px-6 py-3 font-medium text-white disabled:opacity-50"
+          >
+            {huntLoading ? "Buscando vagas..." : "Buscar vagas"}
+          </button>
+
+          {huntMode === "mock" && (
+            <p className="text-sm text-amber-600">
+              Modo demonstração (sem token do Freelancer) — usando vagas-mock.
+            </p>
+          )}
+
+          {huntError && (
+            <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-red-700">
+              {huntError}
+            </div>
+          )}
+
+          {huntedJobs.length > 0 && (
+            <ul className="space-y-3">
+              {huntedJobs.map((job) => (
+                <li
+                  key={job.externalId}
+                  className="flex items-start justify-between gap-4 rounded-lg border border-gray-200 p-4"
+                >
+                  <div>
+                    <p className="font-medium">{job.titulo}</p>
+                    <p className="text-sm text-gray-500">{job.motivo}</p>
+                    {job.budget && (
+                      <p className="mt-1 text-xs text-gray-400">
+                        Orçamento: {job.budget}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <span className="text-lg font-bold">{job.score}</span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs ${
+                        job.elegivel
+                          ? "bg-green-50 text-green-700"
+                          : "bg-gray-100 text-gray-500"
+                      }`}
+                    >
+                      {job.elegivel ? "elegível" : "descartada"}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
           )}
         </section>
       )}
