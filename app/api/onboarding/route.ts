@@ -54,5 +54,9 @@ export async function POST(req: NextRequest) {
     create: { userId: user.id, ...profileData },
   });
 
-  return Response.json({ userId: user.id, profile: draft });
+  return Response.json({
+    userId: user.id,
+    profile: draft,
+    lacunas: draft.lacunas ?? [],
+  });
 }

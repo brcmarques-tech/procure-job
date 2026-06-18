@@ -17,6 +17,11 @@ export default function OnboardingPage() {
   const [cvError, setCvError] = useState<string | null>(null);
   const [cvFileName, setCvFileName] = useState<string | null>(null);
 
+  // Etapa de follow-up: perguntas para completar um perfil raso.
+  const [userId, setUserId] = useState<string | null>(null);
+  const [lacunas, setLacunas] = useState<string[]>([]);
+  const [respostas, setRespostas] = useState<string[]>([]);
+
   async function handleCvUpload(file: File) {
     setCvLoading(true);
     setCvError(null);
@@ -38,19 +43,52 @@ export default function OnboardingPage() {
     }
   }
 
+  /** Gera/atualiza o perfil a partir de um texto. Devolve { userId, lacunas }. */
+  async function submitProfile(text: string) {
+    const res = await fetch("/api/onboarding", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nome, email, rawInput: text }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? "Erro desconhecido.");
+    return data as { userId: string; lacunas: string[] };
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/onboarding", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome, email, rawInput }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Erro desconhecido.");
-      // Vai para a tela do portfólio com o perfil já criado.
+      const data = await submitProfile(rawInput);
+      if (data.lacunas?.length) {
+        // Perfil ainda raso: pergunta antes de seguir.
+        setUserId(data.userId);
+        setLacunas(data.lacunas);
+        setRespostas(data.lacunas.map(() => ""));
+        setLoading(false);
+      } else {
+        router.push(`/portfolio/${data.userId}`);
+      }
+    } catch (err) {
+      setError((err as Error).message);
+      setLoading(false);
+    }
+  }
+
+  /** Reenvia o perfil com as respostas do follow-up e segue para o portfólio. */
+  async function handleComplete() {
+    setLoading(true);
+    setError(null);
+    try {
+      const extras = lacunas
+        .map((q, i) => respostas[i]?.trim() && `${q}\n${respostas[i].trim()}`)
+        .filter(Boolean)
+        .join("\n\n");
+      const combined = extras
+        ? `${rawInput.trim()}\n\nRespostas adicionais:\n${extras}`
+        : rawInput;
+      const data = await submitProfile(combined);
       router.push(`/portfolio/${data.userId}`);
     } catch (err) {
       setError((err as Error).message);
@@ -58,6 +96,68 @@ export default function OnboardingPage() {
     }
   }
 
+  // ---- Etapa de follow-up ----
+  if (lacunas.length) {
+    const algumaResposta = respostas.some((r) => r.trim());
+    return (
+      <main className="mx-auto max-w-2xl px-6 py-12">
+        <Stepper current="perfil" />
+        <h1 className="mt-8 text-3xl font-bold">Vamos deixar seu perfil forte</h1>
+        <p className="mt-2 text-gray-500">
+          Com mais alguns detalhes reais, seu portfólio fica muito mais
+          convincente. Responda o que fizer sentido — nada é obrigatório, e a
+          gente nunca inventa experiência por você.
+        </p>
+
+        <div className="mt-8 space-y-5">
+          {lacunas.map((q, i) => (
+            <div key={i}>
+              <label className="block text-sm font-medium text-gray-800">
+                {q}
+              </label>
+              <textarea
+                value={respostas[i] ?? ""}
+                onChange={(e) =>
+                  setRespostas((prev) => {
+                    const next = [...prev];
+                    next[i] = e.target.value;
+                    return next;
+                  })
+                }
+                rows={2}
+                className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2 outline-none focus:border-black"
+              />
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-8 flex flex-wrap items-center gap-3">
+          <button
+            onClick={handleComplete}
+            disabled={loading || !algumaResposta}
+            className="rounded-lg bg-black px-6 py-3 font-medium text-white disabled:opacity-50"
+          >
+            {loading ? "Atualizando perfil..." : "Completar perfil →"}
+          </button>
+          <button
+            onClick={() => userId && router.push(`/portfolio/${userId}`)}
+            disabled={loading}
+            className="text-sm text-gray-500 underline hover:text-black disabled:opacity-50"
+          >
+            Pular e ver portfólio
+          </button>
+        </div>
+
+        {error && (
+          <div className="mt-6 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-red-700">
+            {error}
+          </div>
+        )}
+      </main>
+    );
+  }
+
+  // ---- Etapa inicial ----
   return (
     <main className="mx-auto max-w-2xl px-6 py-12">
       <Stepper current="perfil" />
