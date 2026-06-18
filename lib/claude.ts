@@ -50,7 +50,9 @@ async function generateText(opts: {
   let out = "";
   for await (const message of query({
     prompt: `${opts.system}\n\n${opts.user}`,
-    options: { allowedTools: [], maxTurns: 1, model: opts.model },
+    // Sem ferramentas (geração de texto puro); maxTurns folgado para
+    // respostas grandes (ex.: portfólio HTML/CSS) não estourarem o limite.
+    options: { allowedTools: [], maxTurns: 8, model: opts.model },
   })) {
     const m = message as { result?: string };
     if (typeof m.result === "string") out = m.result;

@@ -25,7 +25,8 @@ export async function generatePortfolio(
     user:
       `Perfil:\n${JSON.stringify(profile, null, 2)}\n\n` +
       (instrucoes ? `Ajustes pedidos pelo usuário: ${instrucoes}\n\n` : "") +
-      `Gere o site. html e css separados; o html NÃO deve incluir a tag <style> ` +
-      `(o css é injetado separadamente).`,
+      `Gere o site. Retorne html e css separados. ` +
+      `O campo "html" deve conter APENAS o conteúdo interno do body ` +
+      `(sem as tags <html>, <head>, <body> ou <style>); o css vai no campo "css".`,
   });
 }

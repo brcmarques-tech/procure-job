@@ -17,12 +17,23 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ProfileResult | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  // Portfólio (M2)
+  const [pfLoading, setPfLoading] = useState(false);
+  const [pfError, setPfError] = useState<string | null>(null);
+  const [pfSlug, setPfSlug] = useState<string | null>(null);
+  const [pfDoc, setPfDoc] = useState<string | null>(null);
+  const [instrucoes, setInstrucoes] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setResult(null);
+    setUserId(null);
+    setPfSlug(null);
+    setPfDoc(null);
     try {
       const res = await fetch("/api/onboarding", {
         method: "POST",
@@ -32,10 +43,35 @@ export default function OnboardingPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro desconhecido.");
       setResult(data.profile);
+      setUserId(data.userId);
     } catch (err) {
       setError((err as Error).message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function generatePortfolio() {
+    if (!userId) return;
+    setPfLoading(true);
+    setPfError(null);
+    try {
+      const res = await fetch("/api/portfolio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          instrucoes: instrucoes.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro desconhecido.");
+      setPfSlug(data.slug);
+      setPfDoc(`<style>${data.css}</style>${data.html}`);
+    } catch (err) {
+      setPfError((err as Error).message);
+    } finally {
+      setPfLoading(false);
     }
   }
 
@@ -152,6 +188,62 @@ export default function OnboardingPage() {
               ))}
             </div>
           </div>
+        </section>
+      )}
+
+      {result && (
+        <section className="mt-12 space-y-4 border-t border-gray-200 pt-8">
+          <h2 className="text-2xl font-semibold">Portfólio</h2>
+          <p className="text-gray-500">
+            Gere um site-portfólio a partir do seu perfil. Você pode pedir
+            ajustes e regenerar.
+          </p>
+
+          <textarea
+            placeholder="Ajustes opcionais (ex.: estilo minimalista, cores escuras, destaque para projetos)..."
+            value={instrucoes}
+            onChange={(e) => setInstrucoes(e.target.value)}
+            rows={2}
+            className="w-full rounded-lg border border-gray-300 px-4 py-2 outline-none focus:border-black"
+          />
+
+          <button
+            onClick={generatePortfolio}
+            disabled={pfLoading}
+            className="rounded-lg bg-black px-6 py-3 font-medium text-white disabled:opacity-50"
+          >
+            {pfLoading
+              ? "Gerando portfólio..."
+              : pfSlug
+                ? "Regenerar portfólio"
+                : "Gerar portfólio"}
+          </button>
+
+          {pfError && (
+            <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-red-700">
+              {pfError}
+            </div>
+          )}
+
+          {pfDoc && (
+            <div className="space-y-3">
+              {pfSlug && (
+                <a
+                  href={`/p/${pfSlug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block text-blue-600 underline"
+                >
+                  Abrir portfólio em nova aba → /p/{pfSlug}
+                </a>
+              )}
+              <iframe
+                title="Pré-visualização do portfólio"
+                srcDoc={pfDoc}
+                className="h-[600px] w-full rounded-lg border border-gray-300"
+              />
+            </div>
+          )}
         </section>
       )}
     </main>
