@@ -1,11 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-
-if (!process.env.ANTHROPIC_API_KEY) {
-  // Não lança no import para não quebrar o build; quem usa trata a ausência.
-  console.warn("ANTHROPIC_API_KEY não definida — preencha o .env antes de usar a IA.");
-}
-
-export const claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+import { query } from "@anthropic-ai/claude-agent-sdk";
 
 // Modelos centralizados — troque aqui se precisar.
 export const MODELS = {
@@ -13,15 +7,69 @@ export const MODELS = {
   fast: "claude-haiku-4-5-20251001", // tarefas baratas: extração de perfil, score
 } as const;
 
-/** Extrai o primeiro objeto JSON do texto retornado pelo Claude. */
-export function extractJson<T>(message: Anthropic.Message): T {
-  const text = message.content
-    .filter((b): b is Anthropic.TextBlock => b.type === "text")
-    .map((b) => b.text)
-    .join("");
+type ModelKey = keyof typeof MODELS;
+
+/**
+ * Provider dual-mode:
+ * - Com ANTHROPIC_API_KEY definida → usa a API oficial (pay-as-you-go, p/ produção).
+ * - Sem a key → usa o login do Claude Code (assinatura) via Agent SDK (dev/local).
+ */
+const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
+const anthropic = apiKey ? new Anthropic({ apiKey }) : null;
+
+export const AI_MODE = anthropic ? "api-key" : "claude-code";
+
+function extractJsonText<T>(text: string): T {
   const match = text.match(/\{[\s\S]*\}/);
   if (!match) {
     throw new Error("Resposta da IA não continha JSON: " + text.slice(0, 200));
   }
   return JSON.parse(match[0]) as T;
+}
+
+async function generateText(opts: {
+  system: string;
+  user: string;
+  model: string;
+  maxTokens: number;
+}): Promise<string> {
+  if (anthropic) {
+    const msg = await anthropic.messages.create({
+      model: opts.model,
+      max_tokens: opts.maxTokens,
+      system: opts.system,
+      messages: [{ role: "user", content: opts.user }],
+    });
+    return msg.content
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("");
+  }
+
+  // Sem API key → usa a autenticação do Claude Code (assinatura).
+  let out = "";
+  for await (const message of query({
+    prompt: `${opts.system}\n\n${opts.user}`,
+    options: { allowedTools: [], maxTurns: 1, model: opts.model },
+  })) {
+    const m = message as { result?: string };
+    if (typeof m.result === "string") out = m.result;
+  }
+  return out;
+}
+
+/** Gera e devolve um objeto JSON validado a partir de um prompt. */
+export async function generateJSON<T>(opts: {
+  system: string;
+  user: string;
+  model: ModelKey;
+  maxTokens?: number;
+}): Promise<T> {
+  const text = await generateText({
+    system: opts.system,
+    user: opts.user,
+    model: MODELS[opts.model],
+    maxTokens: opts.maxTokens ?? 2000,
+  });
+  return extractJsonText<T>(text);
 }

@@ -1,4 +1,4 @@
-import { claude, MODELS, extractJson } from "./claude";
+import { generateJSON } from "./claude";
 import type { ProfileDraft } from "./profile";
 
 export interface ProposalOutput {
@@ -19,9 +19,9 @@ export async function writeProposal(params: {
   jobTitle: string;
   jobDescription: string;
 }): Promise<ProposalOutput> {
-  const msg = await claude.messages.create({
-    model: MODELS.smart,
-    max_tokens: 1500,
+  return generateJSON<ProposalOutput>({
+    model: "smart",
+    maxTokens: 1500,
     system: [
       "Você escreve propostas de freelancer que conseguem ENTREVISTAS.",
       "Regras:",
@@ -32,17 +32,11 @@ export async function writeProposal(params: {
       "- Mencione o portfólio de forma orgânica.",
       "Responda APENAS com JSON no schema pedido.",
     ].join("\n"),
-    messages: [
-      {
-        role: "user",
-        content:
-          `Perfil:\n${JSON.stringify(params.profile, null, 2)}\n\n` +
-          `Portfólio: ${params.portfolioUrl}\n\n` +
-          `VAGA:\nTítulo: ${params.jobTitle}\nDescrição: ${params.jobDescription}\n\n` +
-          `Devolva JSON: {"proposta": string, "valorSugerido": string, ` +
-          `"prazoSugerido": string, "pontosFortes": string[]}.`,
-      },
-    ],
+    user:
+      `Perfil:\n${JSON.stringify(params.profile, null, 2)}\n\n` +
+      `Portfólio: ${params.portfolioUrl}\n\n` +
+      `VAGA:\nTítulo: ${params.jobTitle}\nDescrição: ${params.jobDescription}\n\n` +
+      `Devolva JSON: {"proposta": string, "valorSugerido": string, ` +
+      `"prazoSugerido": string, "pontosFortes": string[]}.`,
   });
-  return extractJson<ProposalOutput>(msg);
 }
