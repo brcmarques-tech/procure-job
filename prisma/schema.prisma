@@ -44,6 +44,7 @@ model Portfolio {
   css        String   @default("")
   publicSlug String   @unique
   status     String   @default("draft") // draft | publicado
+  images     String   @default("[]") // JSON: {role, url, prompt}[] — imagens geradas (Magnific)
   updatedAt  DateTime @updatedAt
 }
 

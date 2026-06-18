@@ -40,9 +40,17 @@ export async function POST(req: NextRequest) {
     keywordsBusca: JSON.parse(user.profile.keywordsBusca),
   };
 
+  const existingPf = await prisma.portfolio.findUnique({ where: { userId } });
+  const images = existingPf?.images
+    ? (JSON.parse(existingPf.images) as {
+        role: "hero" | "sobre" | "trabalho";
+        url: string;
+      }[])
+    : [];
+
   let out;
   try {
-    out = await generatePortfolio(profile, instrucoes);
+    out = await generatePortfolio(profile, instrucoes, images);
   } catch (e) {
     return Response.json(
       { error: "Falha ao gerar o portfólio: " + (e as Error).message },
@@ -51,8 +59,8 @@ export async function POST(req: NextRequest) {
   }
 
   // Slug estável por usuário (não muda em regenerações).
-  const existing = await prisma.portfolio.findUnique({ where: { userId } });
-  const slug = existing?.publicSlug ?? `${slugify(user.nome)}-${userId.slice(-4)}`;
+  const slug =
+    existingPf?.publicSlug ?? `${slugify(user.nome)}-${userId.slice(-4)}`;
 
   const data = {
     html: out.html,

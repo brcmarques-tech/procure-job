@@ -45,3 +45,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Referências de design baixadas do Figma (cache local)
+.figma_ref/
+
+# Imagens geradas (fotos do usuário) — não versionar
+public/generated/
