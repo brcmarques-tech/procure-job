@@ -19,6 +19,15 @@ interface HuntedJobUI {
   elegivel: boolean;
 }
 
+interface PreparedAppUI {
+  applicationId: string;
+  modoEnvio: string;
+  proposta: string;
+  valorSugerido: string;
+  prazoSugerido: string;
+  status: string;
+}
+
 interface ProfileResult {
   area: string;
   skills: string[];
@@ -53,6 +62,14 @@ export default function OnboardingPage() {
   const [huntError, setHuntError] = useState<string | null>(null);
   const [huntMode, setHuntMode] = useState<string | null>(null);
   const [huntedJobs, setHuntedJobs] = useState<HuntedJobUI[]>([]);
+
+  // Fluxo copiloto (M5)
+  const [prepLoadingId, setPrepLoadingId] = useState<string | null>(null);
+  const [sendLoadingId, setSendLoadingId] = useState<string | null>(null);
+  const [copilotError, setCopilotError] = useState<string | null>(null);
+  const [preparedApps, setPreparedApps] = useState<
+    Record<string, PreparedAppUI>
+  >({});
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -141,6 +158,50 @@ export default function OnboardingPage() {
       setHuntError((err as Error).message);
     } finally {
       setHuntLoading(false);
+    }
+  }
+
+  async function prepareApp(externalId: string) {
+    if (!userId) return;
+    setPrepLoadingId(externalId);
+    setCopilotError(null);
+    try {
+      const res = await fetch("/api/applications/prepare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, externalId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro desconhecido.");
+      setPreparedApps((prev) => ({ ...prev, [externalId]: data }));
+    } catch (err) {
+      setCopilotError((err as Error).message);
+    } finally {
+      setPrepLoadingId(null);
+    }
+  }
+
+  async function sendApp(externalId: string) {
+    const app = preparedApps[externalId];
+    if (!app) return;
+    setSendLoadingId(externalId);
+    setCopilotError(null);
+    try {
+      const res = await fetch("/api/applications/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId: app.applicationId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro desconhecido.");
+      setPreparedApps((prev) => ({
+        ...prev,
+        [externalId]: { ...prev[externalId], status: data.status },
+      }));
+    } catch (err) {
+      setCopilotError((err as Error).message);
+    } finally {
+      setSendLoadingId(null);
     }
   }
 
@@ -346,36 +407,107 @@ export default function OnboardingPage() {
             </div>
           )}
 
+          {copilotError && (
+            <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-red-700">
+              {copilotError}
+            </div>
+          )}
+
           {huntedJobs.length > 0 && (
             <ul className="space-y-3">
-              {huntedJobs.map((job) => (
-                <li
-                  key={job.externalId}
-                  className="flex items-start justify-between gap-4 rounded-lg border border-gray-200 p-4"
-                >
-                  <div>
-                    <p className="font-medium">{job.titulo}</p>
-                    <p className="text-sm text-gray-500">{job.motivo}</p>
-                    {job.budget && (
-                      <p className="mt-1 text-xs text-gray-400">
-                        Orçamento: {job.budget}
-                      </p>
+              {huntedJobs.map((job) => {
+                const app = preparedApps[job.externalId];
+                return (
+                  <li
+                    key={job.externalId}
+                    className="rounded-lg border border-gray-200 p-4"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="font-medium">{job.titulo}</p>
+                        <p className="text-sm text-gray-500">{job.motivo}</p>
+                        {job.budget && (
+                          <p className="mt-1 text-xs text-gray-400">
+                            Orçamento: {job.budget}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        <span className="text-lg font-bold">{job.score}</span>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-xs ${
+                            job.elegivel
+                              ? "bg-green-50 text-green-700"
+                              : "bg-gray-100 text-gray-500"
+                          }`}
+                        >
+                          {job.elegivel ? "elegível" : "descartada"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {job.elegivel && !app && (
+                      <button
+                        onClick={() => prepareApp(job.externalId)}
+                        disabled={prepLoadingId === job.externalId}
+                        className="mt-3 rounded-lg bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                      >
+                        {prepLoadingId === job.externalId
+                          ? "Preparando..."
+                          : "Preparar candidatura"}
+                      </button>
                     )}
-                  </div>
-                  <div className="flex shrink-0 flex-col items-end gap-1">
-                    <span className="text-lg font-bold">{job.score}</span>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs ${
-                        job.elegivel
-                          ? "bg-green-50 text-green-700"
-                          : "bg-gray-100 text-gray-500"
-                      }`}
-                    >
-                      {job.elegivel ? "elegível" : "descartada"}
-                    </span>
-                  </div>
-                </li>
-              ))}
+
+                    {app && (
+                      <div className="mt-3 space-y-3 rounded-lg bg-gray-50 p-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs uppercase text-gray-400">
+                            Proposta ({app.modoEnvio})
+                          </span>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-xs ${
+                              app.status === "enviada"
+                                ? "bg-green-100 text-green-700"
+                                : "bg-amber-100 text-amber-700"
+                            }`}
+                          >
+                            {app.status === "enviada"
+                              ? "enviada"
+                              : "aguardando envio"}
+                          </span>
+                        </div>
+                        <p className="whitespace-pre-wrap text-sm">
+                          {app.proposta}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Valor: {app.valorSugerido} · Prazo: {app.prazoSugerido}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() =>
+                              navigator.clipboard.writeText(app.proposta)
+                            }
+                            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
+                          >
+                            Copiar proposta
+                          </button>
+                          {app.status !== "enviada" && (
+                            <button
+                              onClick={() => sendApp(job.externalId)}
+                              disabled={sendLoadingId === job.externalId}
+                              className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+                            >
+                              {sendLoadingId === job.externalId
+                                ? "Registrando..."
+                                : "Marcar como enviada"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>
