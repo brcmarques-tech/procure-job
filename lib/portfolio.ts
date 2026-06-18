@@ -60,6 +60,14 @@ REGRAS:
 - Sem frameworks, sem JS, sem dependências externas EXCETO o Google Fonts
   acima. Não use imagens externas (sem URLs de placeholder).
 - Conteúdo 100% em português, fiel ao perfil. Nada de "lorem ipsum".
+- NUNCA invente dados para preencher uma seção (experiências, clientes,
+  números, depoimentos). Use APENAS o que está no perfil.
+- SEÇÕES VAZIAS: se uma seção não tem dados reais no perfil, OMITA-A por
+  completo (não renderize título solto, card vazio, "em breve" nem
+  placeholder). O site deve parecer intencional e completo mesmo enxuto —
+  melhor poucas seções bem-feitas do que buracos. Idem para a linha de
+  estatísticas do hero: só inclua números que existam de fato no perfil;
+  se não houver, troque por um CTA ou remova a linha.
 - Deve parecer feito por um designer humano — natural, não cara de template
   genérico nem "feito por IA".
 `;
@@ -74,6 +82,18 @@ export async function generatePortfolio(
   instrucoes?: string,
   images?: PortfolioImageRef[],
 ): Promise<PortfolioOutput> {
+  // Diz ao gerador, de forma explícita, quais seções têm dado real — para
+  // ele OMITIR (não inventar nem deixar buraco) as que estão vazias.
+  const temExperiencias = (profile.experiencias?.length ?? 0) > 0;
+  const temSkills = (profile.skills?.length ?? 0) > 0;
+  const secoesBlock =
+    `\nDADOS REAIS DISPONÍVEIS NESTE PERFIL (omita seções sem dado):\n` +
+    `- Experiências/projetos: ${temExperiencias ? `SIM (${profile.experiencias.length})` : "NÃO → OMITA a seção de experiências/projetos"}\n` +
+    `- Skills: ${temSkills ? `SIM (${profile.skills.length})` : "NÃO → não faça a faixa/seção de skills"}\n` +
+    `- Bio/resumo: ${profile.resumoBio?.trim() ? "SIM" : "NÃO → mantenha o hero curto, sem parágrafo inventado"}\n` +
+    `Com poucos dados, faça um site mais curto e elegante (hero forte + ` +
+    `contato), NÃO encha de seções vazias.\n`;
+
   const imgBlock =
     images && images.length
       ? `\nIMAGENS DISPONÍVEIS (use EXATAMENTE estas URLs em <img>, com object-fit:cover):\n` +
@@ -93,7 +113,7 @@ export async function generatePortfolio(
       "fornecido. Capriche no CSS (espaçamento, tipografia, hover). " +
       'Responda APENAS com JSON válido {"html": string, "css": string}.',
     user:
-      `${DESIGN_SYSTEM}\n${imgBlock}\n` +
+      `${DESIGN_SYSTEM}\n${secoesBlock}\n${imgBlock}\n` +
       `PERFIL DO FREELANCER:\n${JSON.stringify(profile, null, 2)}\n\n` +
       (instrucoes
         ? `AJUSTES PEDIDOS PELO USUÁRIO (têm prioridade): ${instrucoes}\n\n`
