@@ -5,6 +5,7 @@ import {
   type FreelancerProject,
 } from "./freelancer";
 import { scoreJob } from "./jobs";
+import { getValidToken } from "./freelancerAuth";
 import type { ProfileDraft } from "./profile";
 
 /** Score mínimo para uma vaga ser considerada elegível para candidatura. */
@@ -41,7 +42,7 @@ export async function huntJobs(
     keywordsBusca: JSON.parse(user.profile.keywordsBusca),
   };
 
-  const token = process.env.FREELANCER_OAUTH_TOKEN?.trim();
+  const token = await getValidToken(userId);
   let projects: FreelancerProject[] = [];
   let mode: "api" | "mock";
 

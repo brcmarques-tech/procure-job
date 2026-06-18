@@ -53,6 +53,10 @@ export default function VagasPage() {
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  // Conexão com o Freelancer (OAuth)
+  const [fcConfigured, setFcConfigured] = useState(false);
+  const [fcConnected, setFcConnected] = useState(false);
+
   // Caça de vagas
   const [huntLoading, setHuntLoading] = useState(false);
   const [huntError, setHuntError] = useState<string | null>(null);
@@ -100,6 +104,13 @@ export default function VagasPage() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "Erro ao carregar.");
         if (!cancel) await loadTracker();
+        const st = await fetch(`/api/freelancer/status?userId=${userId}`)
+          .then((r) => r.json())
+          .catch(() => null);
+        if (!cancel && st) {
+          setFcConfigured(Boolean(st.configured));
+          setFcConnected(Boolean(st.connected));
+        }
       } catch (err) {
         if (!cancel) setLoadError((err as Error).message);
       } finally {
@@ -260,6 +271,31 @@ export default function VagasPage() {
         <p className="text-gray-500">
           Vagas com compatibilidade abaixo de 60 são descartadas.
         </p>
+
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 p-3">
+          {fcConnected ? (
+            <span className="text-sm font-medium text-green-700">
+              ✓ Conectado ao Freelancer — busca de vagas reais ativa
+            </span>
+          ) : fcConfigured ? (
+            <>
+              <span className="text-sm text-gray-600">
+                Conecte sua conta do Freelancer para buscar vagas reais.
+              </span>
+              <a
+                href={`/api/freelancer/connect?userId=${userId}`}
+                className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white"
+              >
+                Conectar Freelancer
+              </a>
+            </>
+          ) : (
+            <span className="text-sm text-amber-600">
+              OAuth do Freelancer não configurado (faltam Client ID/Secret no
+              .env). Usando modo demonstração.
+            </span>
+          )}
+        </div>
 
         <button
           onClick={runHunt}
