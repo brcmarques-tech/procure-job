@@ -28,16 +28,28 @@ oficial; 1-clique do usuário onde a automação seria arriscada).
 - **Prisma + SQLite** — persistência (troca para Postgres depois)
 - **node-cron** — poll de vagas e respostas (vira fila de verdade na v2)
 
-## Marcos
+## Marcos — MVP concluído ✅
 
-| Marco | Entrega |
-|---|---|
-| M1 | Onboarding + perfil canônico |
-| M2 | Gerador de portfólio + preview/edição |
-| M3 | Integração Freelancer API (auth + buscar vagas) |
-| M4 | Motor de proposta + envio auto 🟢  ← tese central |
-| M5 | Fluxo copiloto 🟡 (1 canal) |
-| M6 | Tracker + notificação por e-mail |
+| Marco | Entrega | Status |
+|---|---|---|
+| M1 | Onboarding + perfil canônico | ✅ |
+| M2 | Gerador de portfólio + preview/edição | ✅ |
+| M3 | Caça de vagas + scoring (Freelancer; mock sem token) | ✅ |
+| M4 | Motor de proposta (vagas de exemplo) | ✅ |
+| M5 | Fluxo copiloto: preparar → enviar candidatura | ✅ |
+| M6 | Tracker (funil) + notificação de resposta | ✅ |
+
+Fluxo completo rodando ponta a ponta: perfil → portfólio → caça de vagas →
+preparar candidatura → enviar → acompanhar → notificar.
+
+## Caminho para produção (pós-MVP)
+
+- `FREELANCER_OAUTH_TOKEN` real → caça de vagas ao vivo (canal 🟢).
+- Provedor de e-mail real (Resend/Gmail API) no lugar do stub `lib/notify.ts`.
+- Canais 🟡: extensão de navegador (1-clique na sessão do usuário) — ver issue
+  de decisão de arquitetura (API > extensão > Playwright).
+- `ANTHROPIC_API_KEY` para uso multiusuário (ver ToS) em vez do Claude Code.
+- Autenticação/multiusuário, Postgres no lugar do SQLite, deploy.
 
 ## Pré-requisitos externos
 
