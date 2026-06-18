@@ -1,0 +1,105 @@
+// Schema do banco — Procure.job (MVP)
+// SQLite no MVP. Arrays/objetos são guardados como String JSON (limitação do SQLite).
+// Trocar provider para "postgresql" depois é só mudar aqui + DATABASE_URL.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String   @id @default(cuid())
+  nome       String
+  email      String   @unique
+  idiomas    String   @default("[]") // JSON: string[]
+  faixaPreco String?
+  createdAt  DateTime @default(now())
+
+  profile   Profile?
+  portfolio Portfolio?
+  channels  Channel[]
+}
+
+model Profile {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  area          String
+  skills        String   @default("[]") // JSON: string[]
+  resumoBio     String
+  experiencias  String   @default("[]") // JSON: {titulo, descricao, periodo?}[]
+  keywordsBusca String   @default("[]") // JSON: string[] — termos usados na busca de vagas
+  updatedAt     DateTime @updatedAt
+}
+
+model Portfolio {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  html       String   @default("")
+  css        String   @default("")
+  publicSlug String   @unique
+  status     String   @default("draft") // draft | publicado
+  updatedAt  DateTime @updatedAt
+}
+
+model Channel {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tipo        String // freelancer | workana | upwork
+  credenciais String   @default("{}") // JSON com tokens — CRIPTOGRAFAR antes de produção
+  modo        String   @default("copiloto") // auto | copiloto
+  createdAt   DateTime @default(now())
+
+  jobs Job[]
+
+  @@unique([userId, tipo])
+}
+
+model Job {
+  id         String   @id @default(cuid())
+  channelId  String
+  channel    Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  externalId String // id da vaga na plataforma de origem
+  titulo     String
+  descricao  String
+  budget     String?
+  skills     String   @default("[]") // JSON: string[]
+  score      Int      @default(0) // 0-100 compatibilidade com o perfil
+  statusVaga String   @default("nova") // nova | elegivel | descartada
+  createdAt  DateTime @default(now())
+
+  application Application?
+
+  @@unique([channelId, externalId])
+}
+
+model Application {
+  id                 String    @id @default(cuid())
+  jobId              String    @unique
+  job                Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  propostaTexto      String
+  valorSugerido      String?
+  prazoSugerido      String?
+  status             String    @default("rascunho") // rascunho | aguardando_envio | enviada | respondida
+  modoEnvio          String // auto | copiloto
+  enviadaEm          DateTime?
+  respostaRecebidaEm DateTime?
+  createdAt          DateTime  @default(now())
+
+  events Event[]
+}
+
+model Event {
+  id            String      @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  tipo          String // visualizada | respondida | entrevista
+  payload       String      @default("{}") // JSON
+  createdAt     DateTime    @default(now())
+}
