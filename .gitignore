@@ -51,3 +51,6 @@ next-env.d.ts
 
 # Imagens geradas (fotos do usuário) — não versionar
 public/generated/
+
+# Fotos de referencia (privadas, nao versionar)
+data/

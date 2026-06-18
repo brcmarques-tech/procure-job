@@ -29,6 +29,7 @@ export default function PortfolioPage() {
   const [imgLoading, setImgLoading] = useState(false);
   const [imgError, setImgError] = useState<string | null>(null);
   const [images, setImages] = useState<GenImage[]>([]);
+  const [regenRole, setRegenRole] = useState<string | null>(null);
 
   useEffect(() => {
     let cancel = false;
@@ -86,6 +87,28 @@ export default function PortfolioPage() {
       setImgLoading(false);
     }
   }, [userId, refFiles]);
+
+  const regenOne = useCallback(
+    async (role: string) => {
+      setRegenRole(role);
+      setImgError(null);
+      try {
+        const res = await fetch("/api/portfolio/images/regenerate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, role }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Erro ao regenerar.");
+        setImages(data.images);
+      } catch (err) {
+        setImgError((err as Error).message);
+      } finally {
+        setRegenRole(null);
+      }
+    },
+    [userId],
+  );
 
   const generatePortfolio = useCallback(async () => {
     setPfLoading(true);
@@ -217,8 +240,15 @@ export default function PortfolioPage() {
                   alt={img.role}
                   className="aspect-[3/4] w-full rounded-lg border border-gray-200 object-cover"
                 />
-                <figcaption className="text-center text-xs text-gray-400">
-                  {img.role}
+                <figcaption className="flex items-center justify-between text-xs text-gray-400">
+                  <span>{img.role}</span>
+                  <button
+                    onClick={() => regenOne(img.role)}
+                    disabled={regenRole !== null || imgLoading}
+                    className="rounded border border-gray-300 px-2 py-0.5 text-gray-600 hover:border-black disabled:opacity-50"
+                  >
+                    {regenRole === img.role ? "..." : "Regerar esta"}
+                  </button>
                 </figcaption>
               </figure>
             ))}
