@@ -2,15 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { EXAMPLE_JOBS } from "@/lib/exampleJobs";
 import Stepper from "@/app/components/Stepper";
-
-interface ProposalResult {
-  proposta: string;
-  valorSugerido: string;
-  prazoSugerido: string;
-  pontosFortes: string[];
-}
+import StatBand from "@/app/components/StatBand";
+import Footer from "@/app/components/Footer";
 
 interface HuntedJobUI {
   externalId: string;
@@ -21,6 +15,7 @@ interface HuntedJobUI {
   elegivel: boolean;
   url?: string | null;
   empresa?: string | null;
+  fonte?: string | null;
 }
 
 interface PreparedAppUI {
@@ -111,11 +106,6 @@ export default function VagasPage() {
   const [bidInputs, setBidInputs] = useState<
     Record<string, { amount: string; period: string }>
   >({});
-
-  // Propostas de exemplo
-  const [propLoadingId, setPropLoadingId] = useState<string | null>(null);
-  const [propError, setPropError] = useState<string | null>(null);
-  const [proposals, setProposals] = useState<Record<string, ProposalResult>>({});
 
   // Tracker
   const [trackerLoading, setTrackerLoading] = useState(false);
@@ -481,28 +471,9 @@ export default function VagasPage() {
     }
   }
 
-  async function generateProposal(jobId: string) {
-    setPropLoadingId(jobId);
-    setPropError(null);
-    try {
-      const res = await fetch("/api/proposal", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, jobId }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Erro desconhecido.");
-      setProposals((prev) => ({ ...prev, [jobId]: data.proposal }));
-    } catch (err) {
-      setPropError((err as Error).message);
-    } finally {
-      setPropLoadingId(null);
-    }
-  }
-
   if (loadingProfile) {
     return (
-      <main className="mx-auto max-w-3xl px-6 py-12 text-gray-500">
+      <main className="mx-auto max-w-3xl px-6 py-12 text-slate-500">
         Carregando...
       </main>
     );
@@ -517,7 +488,7 @@ export default function VagasPage() {
         </div>
         <button
           onClick={() => router.push("/onboarding")}
-          className="mt-4 rounded-lg bg-black px-6 py-3 font-medium text-white"
+          className="mt-4 rounded-lg bg-[#3398DB] px-6 py-3 font-semibold text-white transition hover:bg-[#2b82c2]"
         >
           ← Voltar ao início
         </button>
@@ -526,33 +497,63 @@ export default function VagasPage() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-12">
-      <Stepper current="vagas" userId={userId} />
-
-      <div className="mt-8 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Vagas e candidaturas</h1>
-          <p className="mt-2 text-gray-500">
-            A IA busca vagas, pontua a compatibilidade e prepara propostas no
-            modelo copiloto.
-          </p>
-        </div>
-        <button
-          onClick={() => router.push(`/portfolio/${userId}`)}
-          className="shrink-0 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:border-black"
-        >
-          ← Portfólio
-        </button>
+    <div className="min-h-screen bg-slate-50">
+      <div className="mx-auto max-w-5xl px-6 pt-8">
+        <Stepper current="vagas" userId={userId} />
       </div>
 
+      {/* Hero corporate (claro, com ilustração — estilo template) */}
+      <header className="border-b border-[#EBEBEB] bg-gradient-to-bl from-[#fdece6] via-white to-white">
+        <div className="mx-auto grid max-w-5xl grid-cols-1 items-center gap-8 px-6 py-16 md:grid-cols-[1fr_auto]">
+          <div>
+            <p className="eyebrow">Candidaturas</p>
+            <h1 className="mt-3 text-4xl font-bold tracking-tight text-[#151D26] sm:text-5xl">
+              Vagas e candidaturas
+            </h1>
+            <p className="mt-4 max-w-xl text-[#517193]">
+              A IA busca vagas, pontua a compatibilidade e prepara propostas no
+              modelo copiloto.
+            </p>
+            <button
+              onClick={() => router.push(`/portfolio/${userId}`)}
+              className="mt-6 border border-[#151D26] px-4 py-2 text-sm font-medium text-[#151D26] transition hover:bg-[#151D26] hover:text-white"
+            >
+              ← Voltar ao portfólio
+            </button>
+          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/illustrations/connected-world.png"
+            alt=""
+            className="hidden w-[300px] justify-self-end md:block lg:w-[360px]"
+          />
+        </div>
+
+        {/* Banda de stats — funil de candidaturas */}
+        <div className="mx-auto max-w-5xl px-6 pb-12">
+          <StatBand
+            cols="sm:grid-cols-5"
+            items={[
+              { value: funnel?.aguardando_envio ?? 0, label: "Aguardando" },
+              { value: funnel?.enviada ?? 0, label: "Enviadas" },
+              { value: funnel?.shortlist ?? 0, label: "Shortlist" },
+              { value: funnel?.aceita ?? 0, label: "Aceitas" },
+              { value: funnel?.recusada ?? 0, label: "Recusadas" },
+            ]}
+          />
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-5xl space-y-6 px-6 pb-20 pt-8">
+
       {/* Caça de vagas */}
-      <section className="mt-10 space-y-4">
-        <h2 className="text-2xl font-semibold">Caça de vagas (Freelancer.com)</h2>
-        <p className="text-gray-500">
+      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+        <h2 className="text-2xl font-bold text-[#151D26]">Caça de vagas (Freelancer.com)</h2>
+        <p className="text-slate-500">
           Vagas com compatibilidade abaixo de 60 são descartadas.
         </p>
 
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 p-3">
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 p-3">
           {fcConnected ? (
             <>
               <span className="text-sm font-medium text-green-700">
@@ -560,19 +561,19 @@ export default function VagasPage() {
               </span>
               <a
                 href={`/perfil-freelancer/${userId}`}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:border-black"
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium hover:border-slate-400"
               >
                 Otimizar perfil →
               </a>
             </>
           ) : fcConfigured ? (
             <>
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-slate-600">
                 Conecte sua conta do Freelancer para buscar vagas reais.
               </span>
               <a
                 href={`/api/freelancer/connect?userId=${userId}`}
-                className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white"
+                className="rounded-lg bg-[#3398DB] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b82c2]"
               >
                 Conectar Freelancer
               </a>
@@ -588,13 +589,13 @@ export default function VagasPage() {
         <button
           onClick={runHunt}
           disabled={huntLoading}
-          className="rounded-lg bg-black px-6 py-3 font-medium text-white disabled:opacity-50"
+          className="rounded-lg bg-[#3398DB] px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-[#2b82c2] disabled:opacity-50"
         >
           {huntLoading ? "Buscando vagas..." : "Buscar vagas"}
         </button>
 
         {(huntLoading || huntLog.length > 0) && (
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
             <div className="flex items-center gap-2 text-sm font-medium">
               {huntLoading ? (
                 <>
@@ -605,7 +606,7 @@ export default function VagasPage() {
                 <span className="text-green-700">✓ Busca concluída</span>
               )}
             </div>
-            <ul className="mt-3 space-y-1.5 text-sm text-gray-600">
+            <ul className="mt-3 space-y-1.5 text-sm text-slate-600">
               {huntLog.map((m, i) => (
                 <li key={i} className="flex gap-2">
                   <span className="text-green-600">✓</span>
@@ -639,14 +640,14 @@ export default function VagasPage() {
               return (
                 <li
                   key={job.externalId}
-                  className="rounded-lg border border-gray-200 p-4"
+                  className="rounded-xl border border-slate-200 bg-white p-4 transition hover:border-slate-300 hover:shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="font-medium">{job.titulo}</p>
-                      <p className="text-sm text-gray-500">{job.motivo}</p>
+                      <p className="text-sm text-slate-500">{job.motivo}</p>
                       {job.budget && (
-                        <p className="mt-1 text-xs text-gray-400">
+                        <p className="mt-1 text-xs text-slate-400">
                           Orçamento: {job.budget}
                         </p>
                       )}
@@ -657,7 +658,7 @@ export default function VagasPage() {
                         className={`rounded-full px-2 py-0.5 text-xs ${
                           job.elegivel
                             ? "bg-green-50 text-green-700"
-                            : "bg-gray-100 text-gray-500"
+                            : "bg-slate-100 text-slate-500"
                         }`}
                       >
                         {job.elegivel ? "elegível" : "descartada"}
@@ -669,7 +670,7 @@ export default function VagasPage() {
                     <button
                       onClick={() => prepareApp(job.externalId)}
                       disabled={prepLoadingId === job.externalId}
-                      className="mt-3 rounded-lg bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                      className="mt-3 rounded-lg bg-[#3398DB] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b82c2] disabled:opacity-50"
                     >
                       {prepLoadingId === job.externalId
                         ? "Preparando..."
@@ -678,9 +679,9 @@ export default function VagasPage() {
                   )}
 
                   {app && (
-                    <div className="mt-3 space-y-3 rounded-lg bg-gray-50 p-4">
+                    <div className="mt-3 space-y-3 rounded-lg bg-slate-50 p-4">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs uppercase text-gray-400">
+                        <span className="text-xs uppercase text-slate-400">
                           Proposta ({app.modoEnvio})
                         </span>
                         <span
@@ -708,7 +709,7 @@ export default function VagasPage() {
                       <p className="whitespace-pre-wrap text-sm">
                         {app.proposta}
                       </p>
-                      <p className="text-xs text-gray-400">
+                      <p className="text-xs text-slate-400">
                         Sugestão da IA — Valor: {app.valorSugerido} · Prazo:{" "}
                         {app.prazoSugerido}
                       </p>
@@ -716,7 +717,7 @@ export default function VagasPage() {
                       {app.status !== "enviada" ? (
                         <>
                           <div className="flex flex-wrap items-end gap-3">
-                            <label className="text-xs text-gray-500">
+                            <label className="text-xs text-slate-500">
                               Valor do lance
                               <input
                                 type="number"
@@ -731,10 +732,10 @@ export default function VagasPage() {
                                     },
                                   }))
                                 }
-                                className="mt-1 block w-28 rounded-lg border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-black"
+                                className="mt-1 block w-28 rounded-lg border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-[#3398DB]"
                               />
                             </label>
-                            <label className="text-xs text-gray-500">
+                            <label className="text-xs text-slate-500">
                               Prazo (dias)
                               <input
                                 type="number"
@@ -749,11 +750,11 @@ export default function VagasPage() {
                                     },
                                   }))
                                 }
-                                className="mt-1 block w-24 rounded-lg border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-black"
+                                className="mt-1 block w-24 rounded-lg border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-[#3398DB]"
                               />
                             </label>
                             {job.budget && (
-                              <span className="pb-2 text-xs text-gray-400">
+                              <span className="pb-2 text-xs text-slate-400">
                                 Orçamento da vaga: {job.budget}
                               </span>
                             )}
@@ -763,7 +764,7 @@ export default function VagasPage() {
                               onClick={() =>
                                 navigator.clipboard.writeText(app.proposta)
                               }
-                              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
+                              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
                             >
                               Copiar proposta
                             </button>
@@ -795,25 +796,26 @@ export default function VagasPage() {
       </section>
 
       {/* Vagas remotas (busca automática) */}
-      <section className="mt-12 space-y-4 border-t border-gray-200 pt-8">
-        <h2 className="text-2xl font-semibold">
+      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+        <h2 className="text-2xl font-bold text-[#151D26]">
           Vagas remotas (busca automática)
         </h2>
-        <p className="text-gray-500">
-          Busca automática em quadros de vagas remotas abertas (Remotive). A IA
-          pontua e escreve a proposta; você aplica no link da vaga.
+        <p className="text-slate-500">
+          Busca automática em quadros de vagas remotas abertas (Remotive,
+          RemoteOK, Arbeitnow, WeWorkRemotely). A IA pontua e escreve a
+          proposta; você aplica no link da vaga.
         </p>
 
         <button
           onClick={runRemotiveHunt}
           disabled={rmLoading}
-          className="rounded-lg bg-black px-6 py-3 font-medium text-white disabled:opacity-50"
+          className="rounded-lg bg-[#3398DB] px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-[#2b82c2] disabled:opacity-50"
         >
           {rmLoading ? "Buscando vagas remotas..." : "Buscar vagas remotas"}
         </button>
 
         {(rmLoading || rmLog.length > 0) && (
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
             <div className="flex items-center gap-2 text-sm font-medium">
               {rmLoading ? (
                 <>
@@ -824,7 +826,7 @@ export default function VagasPage() {
                 <span className="text-green-700">✓ Busca concluída</span>
               )}
             </div>
-            <ul className="mt-3 space-y-1.5 text-sm text-gray-600">
+            <ul className="mt-3 space-y-1.5 text-sm text-slate-600">
               {rmLog.map((m, i) => (
                 <li key={i} className="flex gap-2">
                   <span className="text-green-600">✓</span>
@@ -848,15 +850,19 @@ export default function VagasPage() {
               return (
                 <li
                   key={job.externalId}
-                  className="rounded-lg border border-gray-200 p-4"
+                  className="rounded-xl border border-slate-200 bg-white p-4 transition hover:border-slate-300 hover:shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="font-medium">{job.titulo}</p>
-                      {job.empresa && (
-                        <p className="text-xs text-gray-400">{job.empresa}</p>
-                      )}
-                      <p className="text-sm text-gray-500">{job.motivo}</p>
+                      <p className="text-xs text-slate-400">
+                        {job.empresa}
+                        {job.empresa && job.fonte ? " · " : ""}
+                        {job.fonte && (
+                          <span className="text-slate-500">via {job.fonte}</span>
+                        )}
+                      </p>
+                      <p className="text-sm text-slate-500">{job.motivo}</p>
                       {job.url && (
                         <a
                           href={job.url}
@@ -874,7 +880,7 @@ export default function VagasPage() {
                         className={`rounded-full px-2 py-0.5 text-xs ${
                           job.elegivel
                             ? "bg-green-50 text-green-700"
-                            : "bg-gray-100 text-gray-500"
+                            : "bg-slate-100 text-slate-500"
                         }`}
                       >
                         {job.elegivel ? "elegível" : "descartada"}
@@ -886,7 +892,7 @@ export default function VagasPage() {
                     <button
                       onClick={() => prepareRemotive(job.externalId)}
                       disabled={rmPrepId === job.externalId}
-                      className="mt-3 rounded-lg bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                      className="mt-3 rounded-lg bg-[#3398DB] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b82c2] disabled:opacity-50"
                     >
                       {rmPrepId === job.externalId
                         ? "Escrevendo..."
@@ -895,11 +901,11 @@ export default function VagasPage() {
                   )}
 
                   {app && (
-                    <div className="mt-3 space-y-3 rounded-lg bg-gray-50 p-4">
+                    <div className="mt-3 space-y-3 rounded-lg bg-slate-50 p-4">
                       <p className="whitespace-pre-wrap text-sm">
                         {app.proposta}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-slate-500">
                         Valor: {app.valorSugerido} · Prazo: {app.prazoSugerido}
                       </p>
                       <div className="flex flex-wrap gap-2">
@@ -907,7 +913,7 @@ export default function VagasPage() {
                           onClick={() =>
                             navigator.clipboard.writeText(app.proposta)
                           }
-                          className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
+                          className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
                         >
                           Copiar proposta
                         </button>
@@ -922,7 +928,7 @@ export default function VagasPage() {
                           </a>
                         )}
                       </div>
-                      <p className="text-xs text-gray-400">
+                      <p className="text-xs text-slate-400">
                         Já está no seu Acompanhamento. Aplique no site e marque
                         como enviada.
                       </p>
@@ -936,9 +942,9 @@ export default function VagasPage() {
       </section>
 
       {/* Outras plataformas (copiloto) */}
-      <section className="mt-12 space-y-4 border-t border-gray-200 pt-8">
-        <h2 className="text-2xl font-semibold">Outras plataformas (copiloto)</h2>
-        <p className="text-gray-500">
+      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+        <h2 className="text-2xl font-bold text-[#151D26]">Outras plataformas (copiloto)</h2>
+        <p className="text-slate-500">
           LinkedIn, Workana, Upwork e outros não têm API aberta — então você
           traz a vaga e a IA escreve a proposta. Cole o texto da vaga abaixo;
           depois é só copiar a proposta e aplicar no site.
@@ -946,12 +952,12 @@ export default function VagasPage() {
 
         <form onSubmit={analisarVagaAvulsa} className="space-y-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="text-sm text-gray-600">
+            <label className="text-sm text-slate-600">
               Plataforma
               <select
                 value={mPlataforma}
                 onChange={(e) => setMPlataforma(e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-black"
+                className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-[#3398DB]"
               >
                 <option value="linkedin">LinkedIn</option>
                 <option value="workana">Workana</option>
@@ -960,14 +966,14 @@ export default function VagasPage() {
                 <option value="outro">Outro</option>
               </select>
             </label>
-            <label className="text-sm text-gray-600">
+            <label className="text-sm text-slate-600">
               Link da vaga (opcional)
               <input
                 type="url"
                 value={mLink}
                 onChange={(e) => setMLink(e.target.value)}
                 placeholder="https://..."
-                className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-black"
+                className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-[#3398DB]"
               />
             </label>
           </div>
@@ -976,19 +982,19 @@ export default function VagasPage() {
             value={mTitulo}
             onChange={(e) => setMTitulo(e.target.value)}
             placeholder="Título da vaga"
-            className="block w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-black"
+            className="block w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-[#3398DB]"
           />
           <textarea
             value={mDescricao}
             onChange={(e) => setMDescricao(e.target.value)}
             placeholder="Cole aqui a descrição completa da vaga..."
             rows={6}
-            className="block w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-black"
+            className="block w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-[#3398DB]"
           />
           <button
             type="submit"
             disabled={mLoading}
-            className="rounded-lg bg-black px-6 py-3 font-medium text-white disabled:opacity-50"
+            className="rounded-lg bg-[#3398DB] px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-[#2b82c2] disabled:opacity-50"
           >
             {mLoading
               ? "IA escrevendo proposta..."
@@ -1003,9 +1009,9 @@ export default function VagasPage() {
         )}
 
         {mResult && (
-          <div className="space-y-3 rounded-lg bg-gray-50 p-4">
+          <div className="space-y-3 rounded-lg bg-slate-50 p-4">
             <div className="flex items-center justify-between">
-              <span className="text-xs uppercase text-gray-400">
+              <span className="text-xs uppercase text-slate-400">
                 Proposta — {mResult.titulo}
               </span>
               <span className="rounded-full bg-green-50 px-3 py-1 text-xs text-green-700">
@@ -1013,7 +1019,7 @@ export default function VagasPage() {
               </span>
             </div>
             <p className="whitespace-pre-wrap text-sm">{mResult.proposta}</p>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-slate-500">
               Valor sugerido: {mResult.valorSugerido} · Prazo:{" "}
               {mResult.prazoSugerido}
             </p>
@@ -1031,7 +1037,7 @@ export default function VagasPage() {
             )}
             <button
               onClick={() => navigator.clipboard.writeText(mResult.proposta)}
-              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
             >
               Copiar proposta
             </button>
@@ -1040,68 +1046,50 @@ export default function VagasPage() {
       </section>
 
       {/* Acompanhamento */}
-      <section className="mt-12 space-y-4 border-t border-gray-200 pt-8">
+      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-2xl font-semibold">Acompanhamento</h2>
+          <h2 className="text-2xl font-bold text-[#151D26]">Acompanhamento</h2>
           <div className="flex items-center gap-2">
             <button
               onClick={syncStatus}
               disabled={syncLoading}
-              className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+              className="rounded-lg bg-[#3398DB] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b82c2] disabled:opacity-50"
             >
               {syncLoading ? "Checando..." : "Atualizar status"}
             </button>
             <button
               onClick={loadTracker}
               disabled={trackerLoading}
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm disabled:opacity-50"
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm disabled:opacity-50"
             >
               {trackerLoading ? "..." : "Recarregar"}
             </button>
           </div>
         </div>
 
-        {syncMsg && <p className="text-sm text-gray-600">{syncMsg}</p>}
-        <p className="text-xs text-gray-400">
+        {syncMsg && <p className="text-sm text-slate-600">{syncMsg}</p>}
+        <p className="text-xs text-slate-400">
           Este painel só acompanha — para <strong>enviar</strong> candidaturas,
           use a seção <strong>Caça de vagas</strong> acima ↑. &quot;Atualizar
           status&quot; consulta o Freelancer e marca cada lance como aceito,
           recusado ou em shortlist (é grátis, não gasta seus bids).
         </p>
 
-        {funnel && (
-          <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
-            {(
-              [
-                "aguardando_envio",
-                "enviada",
-                "shortlist",
-                "aceita",
-                "recusada",
-              ] as const
-            ).map((k) => (
-              <div
-                key={k}
-                className="rounded-lg border border-gray-200 p-3 text-center"
-              >
-                <div className="text-2xl font-bold">{funnel[k] ?? 0}</div>
-                <div className="text-xs text-gray-500">{STATUS_LABEL[k]}</div>
-              </div>
-            ))}
-          </div>
-        )}
+        <p className="text-xs text-slate-400">
+          Resumo do funil no topo da página ↑
+        </p>
 
         {trackerItems.length > 0 && (
           <ul className="space-y-2">
             {trackerItems.map((item) => (
               <li
                 key={item.id}
-                className="rounded-lg border border-gray-200 p-3"
+                className="rounded-lg border border-slate-200 p-3"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-sm font-medium">{item.titulo}</p>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-slate-400">
                       {item.canal} · {item.modoEnvio}
                     </p>
                   </div>
@@ -1130,7 +1118,7 @@ export default function VagasPage() {
                           descarte.
                         </p>
                         <div className="flex flex-wrap items-end gap-3">
-                          <label className="text-xs text-gray-500">
+                          <label className="text-xs text-slate-500">
                             Valor
                             <input
                               type="number"
@@ -1145,10 +1133,10 @@ export default function VagasPage() {
                                   },
                                 }))
                               }
-                              className="mt-1 block w-28 rounded-lg border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-black"
+                              className="mt-1 block w-28 rounded-lg border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-[#3398DB]"
                             />
                           </label>
-                          <label className="text-xs text-gray-500">
+                          <label className="text-xs text-slate-500">
                             Prazo (dias)
                             <input
                               type="number"
@@ -1163,7 +1151,7 @@ export default function VagasPage() {
                                   },
                                 }))
                               }
-                              className="mt-1 block w-24 rounded-lg border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-black"
+                              className="mt-1 block w-24 rounded-lg border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-[#3398DB]"
                             />
                           </label>
                         </div>
@@ -1189,7 +1177,7 @@ export default function VagasPage() {
                       <button
                         onClick={() => discardApp(item.id)}
                         disabled={trkDelId === item.id}
-                        className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-red-600 hover:border-red-400 disabled:opacity-50"
+                        className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-red-600 hover:border-red-400 disabled:opacity-50"
                       >
                         {trkDelId === item.id ? "..." : "Descartar"}
                       </button>
@@ -1200,7 +1188,7 @@ export default function VagasPage() {
                     <button
                       onClick={() => discardApp(item.id)}
                       disabled={trkDelId === item.id}
-                      className="text-xs text-gray-400 underline hover:text-red-600 disabled:opacity-50"
+                      className="text-xs text-slate-400 underline hover:text-red-600 disabled:opacity-50"
                     >
                       {trkDelId === item.id ? "..." : "Remover"}
                     </button>
@@ -1211,79 +1199,13 @@ export default function VagasPage() {
           </ul>
         )}
       </section>
+      </main>
 
-      {/* Propostas de exemplo */}
-      <section className="mt-12 space-y-4 border-t border-gray-200 pt-8">
-        <h2 className="text-2xl font-semibold">
-          Testar proposta (vagas de exemplo)
-        </h2>
-        <p className="text-gray-500">
-          A IA estuda a vaga e escreve uma proposta personalizada com base no seu
-          perfil e portfólio.
-        </p>
-
-        {propError && (
-          <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-red-700">
-            {propError}
-          </div>
-        )}
-
-        <div className="space-y-4">
-          {EXAMPLE_JOBS.map((job) => {
-            const proposal = proposals[job.id];
-            return (
-              <div key={job.id} className="rounded-lg border border-gray-200 p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="font-medium">{job.titulo}</p>
-                    <p className="text-sm text-gray-400">{job.budget}</p>
-                  </div>
-                  <button
-                    onClick={() => generateProposal(job.id)}
-                    disabled={propLoadingId === job.id}
-                    className="shrink-0 rounded-lg bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-                  >
-                    {propLoadingId === job.id
-                      ? "Escrevendo..."
-                      : proposal
-                        ? "Regerar"
-                        : "Gerar proposta"}
-                  </button>
-                </div>
-                <p className="mt-2 text-sm text-gray-600">{job.descricao}</p>
-
-                {proposal && (
-                  <div className="mt-4 space-y-3 rounded-lg bg-gray-50 p-4">
-                    <p className="whitespace-pre-wrap text-sm">
-                      {proposal.proposta}
-                    </p>
-                    <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-500">
-                      <span>
-                        <strong>Valor:</strong> {proposal.valorSugerido}
-                      </span>
-                      <span>
-                        <strong>Prazo:</strong> {proposal.prazoSugerido}
-                      </span>
-                    </div>
-                    {proposal.pontosFortes?.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {proposal.pontosFortes.map((p) => (
-                          <span
-                            key={p}
-                            className="rounded-full bg-green-50 px-3 py-1 text-xs text-green-700"
-                          >
-                            {p}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </section>
-    </main>
+      <Footer
+        ctaTitle="Pronto para a próxima vaga?"
+        ctaLabel="Buscar agora ↑"
+        onCta={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+      />
+    </div>
   );
 }

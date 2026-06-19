@@ -33,12 +33,12 @@ export default function Stepper({
         const active = s.key === current;
         const to = href(s.key);
         const base =
-          "rounded-full px-3 py-1 " +
+          "rounded-full px-3 py-1 font-medium " +
           (active
-            ? "bg-black text-white"
+            ? "bg-[#3398DB] text-white"
             : to
-              ? "text-gray-600 hover:bg-gray-100"
-              : "text-gray-300");
+              ? "text-slate-600 hover:bg-slate-100"
+              : "text-slate-300");
         return (
           <span key={s.key} className="flex items-center gap-2">
             {to && !active ? (
@@ -48,7 +48,7 @@ export default function Stepper({
             ) : (
               <span className={base}>{s.label}</span>
             )}
-            {i < STEPS.length - 1 && <span className="text-gray-300">→</span>}
+            {i < STEPS.length - 1 && <span className="text-slate-300">→</span>}
           </span>
         );
       })}

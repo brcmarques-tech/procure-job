@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Stepper from "@/app/components/Stepper";
+import StatBand from "@/app/components/StatBand";
+import Footer from "@/app/components/Footer";
 import ProfileSummary, {
   type ProfileResult,
 } from "@/app/components/ProfileSummary";
@@ -135,7 +137,7 @@ export default function PortfolioPage() {
 
   if (loadingProfile) {
     return (
-      <main className="mx-auto max-w-3xl px-6 py-12 text-gray-500">
+      <main className="mx-auto max-w-3xl px-6 py-12 text-slate-500">
         Carregando perfil...
       </main>
     );
@@ -150,7 +152,7 @@ export default function PortfolioPage() {
         </div>
         <button
           onClick={() => router.push("/onboarding")}
-          className="mt-4 rounded-lg bg-black px-6 py-3 font-medium text-white"
+          className="mt-4 rounded-lg bg-[#3398DB] px-6 py-3 font-semibold text-white transition hover:bg-[#2b82c2]"
         >
           ← Voltar ao início
         </button>
@@ -159,34 +161,63 @@ export default function PortfolioPage() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-12">
-      <Stepper current="portfolio" userId={userId} />
-
-      <div className="mt-8 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Seu portfólio</h1>
-          <p className="mt-2 text-gray-500">
-            Gere um site-portfólio a partir do seu perfil. Peça ajustes e
-            regenere até ficar do seu jeito.
-          </p>
-        </div>
-        <button
-          onClick={() => router.push(`/vagas/${userId}`)}
-          className="shrink-0 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:border-black"
-        >
-          Buscar vagas →
-        </button>
+    <div className="min-h-screen bg-slate-50">
+      <div className="mx-auto max-w-3xl px-6 pt-8">
+        <Stepper current="portfolio" userId={userId} />
       </div>
 
-      <div className="mt-8">
+      {/* Hero claro com ilustração (estilo template) */}
+      <header className="border-b border-[#EBEBEB] bg-gradient-to-bl from-[#fdece6] via-white to-white">
+        <div className="mx-auto grid max-w-4xl grid-cols-1 items-center gap-8 px-6 py-16 md:grid-cols-[1fr_auto]">
+          <div>
+            <p className="eyebrow">Portfólio</p>
+            <h1 className="mt-3 text-4xl font-bold tracking-tight text-[#151D26] sm:text-5xl">
+              Seu portfólio
+            </h1>
+            <p className="mt-4 max-w-lg text-[#517193]">
+              Gere um site-portfólio a partir do seu perfil. Peça ajustes e
+              regenere até ficar do seu jeito.
+            </p>
+            <button
+              onClick={() => router.push(`/vagas/${userId}`)}
+              className="mt-6 border border-[#151D26] px-4 py-2 text-sm font-medium text-[#151D26] transition hover:bg-[#151D26] hover:text-white"
+            >
+              Buscar vagas →
+            </button>
+          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/illustrations/operating-system.png"
+            alt=""
+            className="hidden w-[300px] justify-self-end md:block lg:w-[360px]"
+          />
+        </div>
+
+        {/* Banda de stats do perfil */}
+        <div className="mx-auto max-w-4xl px-6 pb-12">
+          <StatBand
+            cols="sm:grid-cols-3"
+            items={[
+              { value: profile.skills.length, label: "Skills" },
+              { value: profile.experiencias.length, label: "Experiências" },
+              { value: images.length, label: "Imagens geradas" },
+            ]}
+          />
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-4xl px-6 pb-20 pt-8">
+      <div>
         <ProfileSummary nome={nome} profile={profile} />
       </div>
 
       {/* Imagens do portfólio a partir de fotos suas */}
-      <section className="mt-8 space-y-4 rounded-2xl border border-gray-200 p-6">
+      <section className="mt-6 space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <div>
-          <h2 className="text-xl font-semibold">Imagens do portfólio</h2>
-          <p className="mt-1 text-sm text-gray-500">
+          <h2 className="text-xl font-bold text-[#151D26]">
+            Imagens do portfólio
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
             Envie de 1 a 4 fotos suas (rosto bem visível). A IA cria 3 imagens
             profissionais com você, no contexto da sua área, pra usar no
             portfólio.
@@ -194,7 +225,7 @@ export default function PortfolioPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <label className="cursor-pointer rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:border-black">
+          <label className="cursor-pointer rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium hover:border-[#3398DB]">
             Selecionar fotos
             <input
               type="file"
@@ -207,14 +238,14 @@ export default function PortfolioPage() {
             />
           </label>
           {refFiles.length > 0 && (
-            <span className="text-sm text-gray-500">
+            <span className="text-sm text-slate-500">
               {refFiles.length} foto(s): {refFiles.map((f) => f.name).join(", ")}
             </span>
           )}
           <button
             onClick={generateImages}
             disabled={imgLoading}
-            className="rounded-lg bg-black px-5 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="rounded-lg bg-[#3398DB] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#2b82c2] disabled:opacity-50"
           >
             {imgLoading
               ? "Gerando imagens (~1 min)..."
@@ -238,14 +269,14 @@ export default function PortfolioPage() {
                 <img
                   src={img.url}
                   alt={img.role}
-                  className="aspect-[3/4] w-full rounded-lg border border-gray-200 object-cover"
+                  className="aspect-[3/4] w-full rounded-lg border border-slate-200 object-cover"
                 />
-                <figcaption className="flex items-center justify-between text-xs text-gray-400">
+                <figcaption className="flex items-center justify-between text-xs text-slate-400">
                   <span>{img.role}</span>
                   <button
                     onClick={() => regenOne(img.role)}
                     disabled={regenRole !== null || imgLoading}
-                    className="rounded border border-gray-300 px-2 py-0.5 text-gray-600 hover:border-black disabled:opacity-50"
+                    className="rounded border border-slate-300 px-2 py-0.5 text-slate-600 hover:border-[#3398DB] disabled:opacity-50"
                   >
                     {regenRole === img.role ? "..." : "Regerar esta"}
                   </button>
@@ -255,26 +286,26 @@ export default function PortfolioPage() {
           </div>
         )}
         {images.length > 0 && (
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-slate-500">
             Pronto! Agora gere (ou regenere) o portfólio abaixo — ele vai usar
             essas imagens.
           </p>
         )}
       </section>
 
-      <section className="mt-8 space-y-4">
+      <section className="mt-6 space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <textarea
           placeholder="Ajustes opcionais (ex.: cores escuras, destaque para projetos, mais minimalista)..."
           value={instrucoes}
           onChange={(e) => setInstrucoes(e.target.value)}
           rows={2}
-          className="w-full rounded-lg border border-gray-300 px-4 py-2 outline-none focus:border-black"
+          className="w-full rounded-lg border border-slate-300 px-4 py-2 outline-none focus:border-[#3398DB]"
         />
 
         <button
           onClick={generatePortfolio}
           disabled={pfLoading}
-          className="rounded-lg bg-black px-6 py-3 font-medium text-white disabled:opacity-50"
+          className="rounded-lg bg-[#3398DB] px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-[#2b82c2] disabled:opacity-50"
         >
           {pfLoading
             ? "Gerando portfólio..."
@@ -296,7 +327,7 @@ export default function PortfolioPage() {
                 href={`/p/${pfSlug}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-block text-blue-600 underline"
+                className="inline-block font-medium text-[#3398DB] underline"
               >
                 Abrir portfólio em nova aba → /p/{pfSlug}
               </a>
@@ -304,22 +335,19 @@ export default function PortfolioPage() {
             <iframe
               title="Pré-visualização do portfólio"
               srcDoc={pfDoc}
-              className="h-[600px] w-full rounded-lg border border-gray-300"
+              className="h-[600px] w-full rounded-lg border border-slate-300"
             />
           </div>
         )}
       </section>
 
-      {pfDoc && (
-        <div className="mt-10 flex justify-end">
-          <button
-            onClick={() => router.push(`/vagas/${userId}`)}
-            className="rounded-lg bg-black px-6 py-3 font-medium text-white"
-          >
-            Próximo: buscar vagas →
-          </button>
-        </div>
-      )}
-    </main>
+      </main>
+
+      <Footer
+        ctaTitle="Portfólio pronto? Hora de encontrar vagas."
+        ctaLabel="Buscar vagas →"
+        onCta={() => router.push(`/vagas/${userId}`)}
+      />
+    </div>
   );
 }

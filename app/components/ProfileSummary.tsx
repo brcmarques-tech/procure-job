@@ -17,17 +17,19 @@ export default function ProfileSummary({
   profile: ProfileResult;
 }) {
   return (
-    <section className="space-y-5 rounded-2xl border border-gray-200 p-6">
+    <section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
       <div>
-        {nome && <p className="text-lg font-semibold">{nome}</p>}
-        <p className="text-sm text-gray-500">{profile.area}</p>
+        {nome && (
+          <p className="text-lg font-bold text-[#151D26]">{nome}</p>
+        )}
+        <p className="text-sm font-medium text-[#3398DB]">{profile.area}</p>
       </div>
-      <p className="text-sm">{profile.resumoBio}</p>
+      <p className="text-sm text-slate-600">{profile.resumoBio}</p>
       <div className="flex flex-wrap gap-2">
         {profile.skills.map((s) => (
           <span
             key={s}
-            className="rounded-full bg-gray-100 px-3 py-1 text-xs"
+            className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600"
           >
             {s}
           </span>
