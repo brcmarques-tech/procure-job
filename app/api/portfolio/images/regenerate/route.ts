@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { logError } from "@/lib/logError";
 import { z } from "zod";
 import { regenerateOneImage } from "@/lib/portfolioImages";
 
@@ -22,6 +23,7 @@ export async function POST(req: NextRequest) {
     const result = await regenerateOneImage(parsed.data.userId, parsed.data.role);
     return Response.json(result);
   } catch (e) {
+    logError("api/portfolio/images/regenerate", e);
     return Response.json(
       { error: "Falha ao regenerar imagem: " + (e as Error).message },
       { status: 502 },

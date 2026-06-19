@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { logError } from "@/lib/logError";
 import { generatePortfolioImages } from "@/lib/portfolioImages";
 
 export const maxDuration = 300; // geração pode levar ~1 min
@@ -59,6 +60,7 @@ export async function POST(req: NextRequest) {
     const images = await generatePortfolioImages(userId, referencesDataUri);
     return Response.json({ images });
   } catch (e) {
+    logError("api/portfolio/images", e);
     return Response.json(
       { error: "Falha ao gerar imagens: " + (e as Error).message },
       { status: 502 },

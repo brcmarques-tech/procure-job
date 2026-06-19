@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { logError } from "@/lib/logError";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { generatePortfolio } from "@/lib/portfolio";
@@ -52,6 +53,7 @@ export async function POST(req: NextRequest) {
   try {
     out = await generatePortfolio(profile, instrucoes, images);
   } catch (e) {
+    logError("api/portfolio", e);
     return Response.json(
       { error: "Falha ao gerar o portfólio: " + (e as Error).message },
       { status: 502 },

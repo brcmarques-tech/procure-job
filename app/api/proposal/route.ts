@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { logError } from "@/lib/logError";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { writeProposal } from "@/lib/proposals";
@@ -60,6 +61,7 @@ export async function POST(req: NextRequest) {
       jobDescription: job.descricao,
     });
   } catch (e) {
+    logError("api/proposal", e);
     return Response.json(
       { error: "Falha ao gerar a proposta: " + (e as Error).message },
       { status: 502 },

@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { logError } from "@/lib/logError";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getValidToken } from "@/lib/freelancerAuth";
@@ -65,6 +66,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (e) {
+    logError("api/freelancer/profile/optimize", e);
     return Response.json(
       { error: "Falha ao otimizar: " + (e as Error).message },
       { status: 502 },

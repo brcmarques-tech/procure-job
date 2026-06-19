@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { logError } from "@/lib/logError";
 import { z } from "zod";
 import { deleteApplication } from "@/lib/applications";
 
@@ -14,6 +15,7 @@ export async function POST(req: NextRequest) {
     const result = await deleteApplication(parsed.data.applicationId);
     return Response.json(result);
   } catch (e) {
+    logError("api/applications/delete", e);
     return Response.json(
       { error: "Falha ao descartar: " + (e as Error).message },
       { status: 500 },

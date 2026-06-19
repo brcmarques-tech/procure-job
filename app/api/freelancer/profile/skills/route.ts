@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { logError } from "@/lib/logError";
 import { z } from "zod";
 import { getValidToken } from "@/lib/freelancerAuth";
 import { addJobs, removeJobs, getSelfProfile } from "@/lib/freelancer";
@@ -31,6 +32,7 @@ export async function POST(req: NextRequest) {
     const profile = await getSelfProfile(token);
     return Response.json({ ok: true, jobs: profile.jobs });
   } catch (e) {
+    logError("api/freelancer/profile/skills", e);
     return Response.json(
       { error: "Falha ao aplicar skills: " + (e as Error).message },
       { status: 502 },

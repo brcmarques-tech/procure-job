@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { logError } from "@/lib/logError";
 import { z } from "zod";
 import { huntJobs } from "@/lib/jobHunter";
 
@@ -41,6 +42,7 @@ export async function POST(req: NextRequest) {
         );
         send({ type: "result", mode: result.mode, jobs: result.jobs });
       } catch (e) {
+        logError("api/jobs/hunt/stream", e);
         send({ type: "error", message: (e as Error).message });
       } finally {
         clearInterval(ticks);

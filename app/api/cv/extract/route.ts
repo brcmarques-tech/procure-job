@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { logError } from "@/lib/logError";
 import { extractPdfText } from "@/lib/pdf";
 
 const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
@@ -47,6 +48,7 @@ export async function POST(req: NextRequest) {
     }
     return Response.json({ text, chars: text.length });
   } catch (e) {
+    logError("api/cv/extract", e);
     return Response.json(
       { error: "Falha ao ler o PDF: " + (e as Error).message },
       { status: 502 },

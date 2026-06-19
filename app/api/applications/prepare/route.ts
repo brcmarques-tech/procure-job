@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { logError } from "@/lib/logError";
 import { z } from "zod";
 import { prepareApplication } from "@/lib/applications";
 
@@ -22,6 +23,7 @@ export async function POST(req: NextRequest) {
     );
     return Response.json(result);
   } catch (e) {
+    logError("api/applications/prepare", e);
     return Response.json(
       { error: "Falha ao preparar candidatura: " + (e as Error).message },
       { status: 502 },

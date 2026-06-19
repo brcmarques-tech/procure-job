@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { logError } from "@/lib/logError";
 import { z } from "zod";
 import { huntRemotiveJobs } from "@/lib/jobHunter";
 
@@ -36,6 +37,7 @@ export async function POST(req: NextRequest) {
         );
         send({ type: "result", jobs: result.jobs });
       } catch (e) {
+        logError("api/jobs/remotive/stream", e);
         send({ type: "error", message: (e as Error).message });
       } finally {
         clearInterval(ticks);

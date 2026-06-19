@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { logError } from "@/lib/logError";
 import { z } from "zod";
 import { sendApplication } from "@/lib/applications";
 
@@ -17,8 +18,12 @@ export async function POST(req: NextRequest) {
   const { applicationId, amount, period } = parsed.data;
   try {
     const result = await sendApplication(applicationId, { amount, period });
+    console.log(
+      `[send] OK app=${applicationId} bid=${result.bidId ?? "-"} real=${result.real}`,
+    );
     return Response.json(result);
   } catch (e) {
+    logError("api/applications/send", e, { applicationId, amount, period });
     return Response.json(
       { error: "Falha ao enviar lance: " + (e as Error).message },
       { status: 502 },

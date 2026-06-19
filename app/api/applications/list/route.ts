@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { logError } from "@/lib/logError";
 import { listApplications } from "@/lib/tracker";
 
 /** M6 — lista as candidaturas do usuário + funil. */
@@ -11,6 +12,7 @@ export async function GET(req: NextRequest) {
     const result = await listApplications(userId);
     return Response.json(result);
   } catch (e) {
+    logError("api/applications/list", e);
     return Response.json(
       { error: "Falha ao listar candidaturas: " + (e as Error).message },
       { status: 500 },

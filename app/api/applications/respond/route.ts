@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { logError } from "@/lib/logError";
 import { z } from "zod";
 import { registerResponse } from "@/lib/tracker";
 
@@ -14,6 +15,7 @@ export async function POST(req: NextRequest) {
     const result = await registerResponse(parsed.data.applicationId);
     return Response.json(result);
   } catch (e) {
+    logError("api/applications/respond", e);
     return Response.json(
       { error: "Falha ao registrar resposta: " + (e as Error).message },
       { status: 502 },

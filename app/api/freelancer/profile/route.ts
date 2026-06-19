@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { logError } from "@/lib/logError";
 import { getValidToken } from "@/lib/freelancerAuth";
 import { getSelfProfile } from "@/lib/freelancer";
 
@@ -16,6 +17,7 @@ export async function GET(req: NextRequest) {
     const profile = await getSelfProfile(token);
     return Response.json({ connected: true, profile });
   } catch (e) {
+    logError("api/freelancer/profile", e);
     return Response.json(
       { error: "Falha ao ler o perfil: " + (e as Error).message },
       { status: 502 },

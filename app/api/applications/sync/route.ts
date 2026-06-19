@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { logError } from "@/lib/logError";
 import { z } from "zod";
 import { syncBidStatuses } from "@/lib/applications";
 
@@ -14,6 +15,7 @@ export async function POST(req: NextRequest) {
     const result = await syncBidStatuses(parsed.data.userId);
     return Response.json(result);
   } catch (e) {
+    logError("api/applications/sync", e);
     return Response.json(
       { error: "Falha ao sincronizar status: " + (e as Error).message },
       { status: 502 },
