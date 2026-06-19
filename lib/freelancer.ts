@@ -109,17 +109,23 @@ export async function placeBid(
   if (!res.ok) {
     const body = await res.text();
     let code = "";
+    let apiMsg = "";
     try {
-      code = JSON.parse(body)?.error_code ?? "";
+      const j = JSON.parse(body);
+      code = j?.error_code ?? "";
+      apiMsg = j?.message ?? "";
     } catch {
       /* corpo não-JSON */
     }
     const friendly = FREELANCER_BID_ERRORS[code];
-    throw new Error(
-      friendly
-        ? `${friendly}${code ? ` [${code}]` : ""}`
-        : `placeBid falhou: ${res.status} ${body}`,
-    );
+    // Tradução fixa quando existe; senão, mostra a mensagem da própria API
+    // (ex.: valor mínimo do lance, que é dinâmico por vaga); senão, o cru.
+    const msg = friendly
+      ? friendly
+      : apiMsg
+        ? `Lance recusado: ${apiMsg}`
+        : `placeBid falhou: ${res.status} ${body}`;
+    throw new Error(`${msg}${code ? ` [${code}]` : ""}`);
   }
   const data = await res.json();
   return data?.result;

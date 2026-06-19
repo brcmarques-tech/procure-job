@@ -26,7 +26,11 @@ export async function POST(req: NextRequest) {
       let closed = false;
       const send = (e: unknown) => {
         if (closed) return;
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(e)}\n\n`));
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(e)}\n\n`));
+        } catch {
+          closed = true; // cliente desconectou — para de tentar escrever
+        }
       };
 
       const t0 = Date.now();
