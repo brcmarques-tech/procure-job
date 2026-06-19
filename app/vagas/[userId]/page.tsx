@@ -19,6 +19,8 @@ interface HuntedJobUI {
   score: number;
   motivo: string;
   elegivel: boolean;
+  url?: string | null;
+  empresa?: string | null;
 }
 
 interface PreparedAppUI {
@@ -28,6 +30,8 @@ interface PreparedAppUI {
   valorSugerido: string;
   prazoSugerido: string;
   status: string;
+  bidId?: number | null;
+  real?: boolean;
 }
 
 interface TrackerItemUI {
@@ -36,12 +40,17 @@ interface TrackerItemUI {
   canal: string;
   status: string;
   modoEnvio: string;
+  valorSugerido: string | null;
+  prazoSugerido: string | null;
 }
 
 const STATUS_LABEL: Record<string, string> = {
   rascunho: "Rascunho",
   aguardando_envio: "Aguardando envio",
   enviada: "Enviada",
+  shortlist: "Shortlist",
+  aceita: "Aceita",
+  recusada: "Recusada",
   respondida: "Respondida",
 };
 
@@ -65,6 +74,32 @@ export default function VagasPage() {
   const [huntLog, setHuntLog] = useState<string[]>([]);
   const [huntElapsed, setHuntElapsed] = useState(0);
 
+  // Vagas remotas (Remotive — busca automática)
+  const [rmLoading, setRmLoading] = useState(false);
+  const [rmError, setRmError] = useState<string | null>(null);
+  const [rmJobs, setRmJobs] = useState<HuntedJobUI[]>([]);
+  const [rmLog, setRmLog] = useState<string[]>([]);
+  const [rmElapsed, setRmElapsed] = useState(0);
+  const [rmPrepId, setRmPrepId] = useState<string | null>(null);
+  const [rmPrepared, setRmPrepared] = useState<Record<string, PreparedAppUI>>(
+    {},
+  );
+
+  // Outras plataformas (copiloto) — vaga avulsa colada pelo usuário
+  const [mPlataforma, setMPlataforma] = useState("linkedin");
+  const [mTitulo, setMTitulo] = useState("");
+  const [mDescricao, setMDescricao] = useState("");
+  const [mLink, setMLink] = useState("");
+  const [mLoading, setMLoading] = useState(false);
+  const [mError, setMError] = useState<string | null>(null);
+  const [mResult, setMResult] = useState<{
+    titulo: string;
+    proposta: string;
+    valorSugerido: string;
+    prazoSugerido: string;
+    pontosFortes: string[];
+  } | null>(null);
+
   // Fluxo copiloto
   const [prepLoadingId, setPrepLoadingId] = useState<string | null>(null);
   const [sendLoadingId, setSendLoadingId] = useState<string | null>(null);
@@ -72,6 +107,10 @@ export default function VagasPage() {
   const [preparedApps, setPreparedApps] = useState<Record<string, PreparedAppUI>>(
     {},
   );
+  // Valor (número) e prazo (dias) editáveis por vaga, antes de enviar o lance.
+  const [bidInputs, setBidInputs] = useState<
+    Record<string, { amount: string; period: string }>
+  >({});
 
   // Propostas de exemplo
   const [propLoadingId, setPropLoadingId] = useState<string | null>(null);
@@ -82,7 +121,14 @@ export default function VagasPage() {
   const [trackerLoading, setTrackerLoading] = useState(false);
   const [funnel, setFunnel] = useState<Record<string, number> | null>(null);
   const [trackerItems, setTrackerItems] = useState<TrackerItemUI[]>([]);
-  const [respondLoadingId, setRespondLoadingId] = useState<string | null>(null);
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
+  // Envio/descarte direto pelo acompanhamento (por applicationId).
+  const [trkSendId, setTrkSendId] = useState<string | null>(null);
+  const [trkDelId, setTrkDelId] = useState<string | null>(null);
+  const [trkInputs, setTrkInputs] = useState<
+    Record<string, { amount: string; period: string }>
+  >({});
 
   const loadTracker = useCallback(async () => {
     setTrackerLoading(true);
@@ -92,11 +138,101 @@ export default function VagasPage() {
       if (res.ok) {
         setFunnel(data.funnel);
         setTrackerItems(data.items);
+        // Pré-preenche valor/prazo dos itens (a partir da sugestão da IA).
+        const inputs: Record<string, { amount: string; period: string }> = {};
+        for (const it of data.items as TrackerItemUI[]) {
+          inputs[it.id] = {
+            amount: String(it.valorSugerido ?? "").replace(/[^\d]/g, ""),
+            period: (String(it.prazoSugerido ?? "").match(/\d+/) ?? ["7"])[0],
+          };
+        }
+        setTrkInputs(inputs);
       }
     } finally {
       setTrackerLoading(false);
     }
   }, [userId]);
+
+  async function sendFromTracker(item: TrackerItemUI) {
+    const isFreelancer = item.canal === "freelancer";
+    const bid = trkInputs[item.id];
+    const amount = Number(bid?.amount);
+    const period = Number(bid?.period);
+    if (isFreelancer && (!amount || amount <= 0)) {
+      setSyncMsg("Informe um valor de lance maior que zero.");
+      return;
+    }
+    setTrkSendId(item.id);
+    setSyncMsg(null);
+    try {
+      const res = await fetch("/api/applications/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          isFreelancer
+            ? { applicationId: item.id, amount, period: period > 0 ? period : 7 }
+            : { applicationId: item.id },
+        ),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao enviar.");
+      setSyncMsg(
+        data.real
+          ? `✓ Lance enviado no Freelancer${data.bidId ? ` (#${data.bidId})` : ""}.`
+          : "✓ Registrada como enviada.",
+      );
+      await loadTracker();
+    } catch (err) {
+      setSyncMsg((err as Error).message);
+    } finally {
+      setTrkSendId(null);
+    }
+  }
+
+  async function discardApp(id: string) {
+    setTrkDelId(id);
+    setSyncMsg(null);
+    try {
+      const res = await fetch("/api/applications/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId: id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao descartar.");
+      await loadTracker();
+    } catch (err) {
+      setSyncMsg((err as Error).message);
+    } finally {
+      setTrkDelId(null);
+    }
+  }
+
+  async function syncStatus() {
+    setSyncLoading(true);
+    setSyncMsg(null);
+    try {
+      const res = await fetch("/api/applications/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao sincronizar.");
+      await loadTracker();
+      setSyncMsg(
+        data.synced === 0
+          ? "Nenhum lance enviado para checar ainda."
+          : data.updated > 0
+            ? `${data.updated} candidatura(s) com status novo!`
+            : `Sem novidades — ${data.synced} lance(s) ainda pendente(s).`,
+      );
+    } catch (err) {
+      setSyncMsg((err as Error).message);
+    } finally {
+      setSyncLoading(false);
+    }
+  }
 
   useEffect(() => {
     let cancel = false;
@@ -173,6 +309,107 @@ export default function VagasPage() {
     }
   }
 
+  async function analisarVagaAvulsa(e: React.FormEvent) {
+    e.preventDefault();
+    setMLoading(true);
+    setMError(null);
+    setMResult(null);
+    try {
+      const res = await fetch("/api/jobs/manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          plataforma: mPlataforma,
+          titulo: mTitulo,
+          descricao: mDescricao,
+          link: mLink || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro desconhecido.");
+      setMResult({
+        titulo: data.titulo,
+        proposta: data.proposta,
+        valorSugerido: data.valorSugerido,
+        prazoSugerido: data.prazoSugerido,
+        pontosFortes: data.pontosFortes ?? [],
+      });
+      await loadTracker();
+    } catch (err) {
+      setMError((err as Error).message);
+    } finally {
+      setMLoading(false);
+    }
+  }
+
+  async function runRemotiveHunt() {
+    setRmLoading(true);
+    setRmError(null);
+    setRmLog([]);
+    setRmElapsed(0);
+    setRmJobs([]);
+    try {
+      const res = await fetch("/api/jobs/remotive/stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      if (!res.ok || !res.body) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error ?? "Falha ao iniciar a busca.");
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() ?? "";
+        for (const part of parts) {
+          const line = part.split("\n").find((l) => l.startsWith("data:"));
+          if (!line) continue;
+          const e = JSON.parse(line.slice(5).trim());
+          if (e.type === "status") {
+            setRmLog((prev) => [...prev, e.message as string]);
+          } else if (e.type === "tick") {
+            setRmElapsed(e.seconds as number);
+          } else if (e.type === "result") {
+            setRmJobs(e.jobs);
+          } else if (e.type === "error") {
+            setRmError(e.message as string);
+          }
+        }
+      }
+    } catch (err) {
+      setRmError((err as Error).message);
+    } finally {
+      setRmLoading(false);
+    }
+  }
+
+  async function prepareRemotive(externalId: string) {
+    setRmPrepId(externalId);
+    setRmError(null);
+    try {
+      const res = await fetch("/api/applications/prepare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, externalId, tipo: "remotive" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro desconhecido.");
+      setRmPrepared((prev) => ({ ...prev, [externalId]: data }));
+      await loadTracker();
+    } catch (err) {
+      setRmError((err as Error).message);
+    } finally {
+      setRmPrepId(null);
+    }
+  }
+
   async function prepareApp(externalId: string) {
     setPrepLoadingId(externalId);
     setCopilotError(null);
@@ -185,6 +422,16 @@ export default function VagasPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro desconhecido.");
       setPreparedApps((prev) => ({ ...prev, [externalId]: data }));
+      // Pré-preenche valor/prazo a partir da sugestão da IA (editável).
+      setBidInputs((prev) => ({
+        ...prev,
+        [externalId]: {
+          amount: String(data.valorSugerido ?? "").replace(/[^\d]/g, ""),
+          period: ((String(data.prazoSugerido ?? "").match(/\d+/) ?? [
+            "7",
+          ])[0]),
+        },
+      }));
       await loadTracker();
     } catch (err) {
       setCopilotError((err as Error).message);
@@ -196,19 +443,35 @@ export default function VagasPage() {
   async function sendApp(externalId: string) {
     const app = preparedApps[externalId];
     if (!app) return;
+    const bid = bidInputs[externalId];
+    const amount = Number(bid?.amount);
+    const period = Number(bid?.period);
+    if (!amount || amount <= 0) {
+      setCopilotError("Informe um valor de lance maior que zero.");
+      return;
+    }
     setSendLoadingId(externalId);
     setCopilotError(null);
     try {
       const res = await fetch("/api/applications/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ applicationId: app.applicationId }),
+        body: JSON.stringify({
+          applicationId: app.applicationId,
+          amount,
+          period: period > 0 ? period : 7,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro desconhecido.");
       setPreparedApps((prev) => ({
         ...prev,
-        [externalId]: { ...prev[externalId], status: data.status },
+        [externalId]: {
+          ...prev[externalId],
+          status: data.status,
+          bidId: data.bidId,
+          real: data.real,
+        },
       }));
       await loadTracker();
     } catch (err) {
@@ -234,20 +497,6 @@ export default function VagasPage() {
       setPropError((err as Error).message);
     } finally {
       setPropLoadingId(null);
-    }
-  }
-
-  async function simulateResponse(applicationId: string) {
-    setRespondLoadingId(applicationId);
-    try {
-      await fetch("/api/applications/respond", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ applicationId }),
-      });
-      await loadTracker();
-    } finally {
-      setRespondLoadingId(null);
     }
   }
 
@@ -446,6 +695,207 @@ export default function VagasPage() {
                             : "aguardando envio"}
                         </span>
                       </div>
+
+                      {app.status !== "enviada" && (
+                        <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                          ⚠️ <strong>Ainda não enviada.</strong> Confira o valor
+                          e o prazo abaixo e clique em{" "}
+                          <strong>“Enviar lance no Freelancer”</strong> para
+                          candidatar-se de verdade.
+                        </div>
+                      )}
+
+                      <p className="whitespace-pre-wrap text-sm">
+                        {app.proposta}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        Sugestão da IA — Valor: {app.valorSugerido} · Prazo:{" "}
+                        {app.prazoSugerido}
+                      </p>
+
+                      {app.status !== "enviada" ? (
+                        <>
+                          <div className="flex flex-wrap items-end gap-3">
+                            <label className="text-xs text-gray-500">
+                              Valor do lance
+                              <input
+                                type="number"
+                                min={1}
+                                value={bidInputs[job.externalId]?.amount ?? ""}
+                                onChange={(e) =>
+                                  setBidInputs((prev) => ({
+                                    ...prev,
+                                    [job.externalId]: {
+                                      ...prev[job.externalId],
+                                      amount: e.target.value,
+                                    },
+                                  }))
+                                }
+                                className="mt-1 block w-28 rounded-lg border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-black"
+                              />
+                            </label>
+                            <label className="text-xs text-gray-500">
+                              Prazo (dias)
+                              <input
+                                type="number"
+                                min={1}
+                                value={bidInputs[job.externalId]?.period ?? ""}
+                                onChange={(e) =>
+                                  setBidInputs((prev) => ({
+                                    ...prev,
+                                    [job.externalId]: {
+                                      ...prev[job.externalId],
+                                      period: e.target.value,
+                                    },
+                                  }))
+                                }
+                                className="mt-1 block w-24 rounded-lg border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-black"
+                              />
+                            </label>
+                            {job.budget && (
+                              <span className="pb-2 text-xs text-gray-400">
+                                Orçamento da vaga: {job.budget}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              onClick={() =>
+                                navigator.clipboard.writeText(app.proposta)
+                              }
+                              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
+                            >
+                              Copiar proposta
+                            </button>
+                            <button
+                              onClick={() => sendApp(job.externalId)}
+                              disabled={sendLoadingId === job.externalId}
+                              className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+                            >
+                              {sendLoadingId === job.externalId
+                                ? "Enviando lance..."
+                                : "Enviar lance no Freelancer"}
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-sm font-medium text-green-700">
+                          {app.real
+                            ? `✓ Lance enviado no Freelancer${app.bidId ? ` (#${app.bidId})` : ""}`
+                            : "✓ Registrada como enviada"}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      {/* Vagas remotas (busca automática) */}
+      <section className="mt-12 space-y-4 border-t border-gray-200 pt-8">
+        <h2 className="text-2xl font-semibold">
+          Vagas remotas (busca automática)
+        </h2>
+        <p className="text-gray-500">
+          Busca automática em quadros de vagas remotas abertas (Remotive). A IA
+          pontua e escreve a proposta; você aplica no link da vaga.
+        </p>
+
+        <button
+          onClick={runRemotiveHunt}
+          disabled={rmLoading}
+          className="rounded-lg bg-black px-6 py-3 font-medium text-white disabled:opacity-50"
+        >
+          {rmLoading ? "Buscando vagas remotas..." : "Buscar vagas remotas"}
+        </button>
+
+        {(rmLoading || rmLog.length > 0) && (
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              {rmLoading ? (
+                <>
+                  <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-black" />
+                  <span>Claude trabalhando… {rmElapsed}s</span>
+                </>
+              ) : (
+                <span className="text-green-700">✓ Busca concluída</span>
+              )}
+            </div>
+            <ul className="mt-3 space-y-1.5 text-sm text-gray-600">
+              {rmLog.map((m, i) => (
+                <li key={i} className="flex gap-2">
+                  <span className="text-green-600">✓</span>
+                  <span>{m}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {rmError && (
+          <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-red-700">
+            {rmError}
+          </div>
+        )}
+
+        {rmJobs.length > 0 && (
+          <ul className="space-y-3">
+            {rmJobs.map((job) => {
+              const app = rmPrepared[job.externalId];
+              return (
+                <li
+                  key={job.externalId}
+                  className="rounded-lg border border-gray-200 p-4"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="font-medium">{job.titulo}</p>
+                      {job.empresa && (
+                        <p className="text-xs text-gray-400">{job.empresa}</p>
+                      )}
+                      <p className="text-sm text-gray-500">{job.motivo}</p>
+                      {job.url && (
+                        <a
+                          href={job.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-sm underline hover:text-black"
+                        >
+                          Ver vaga ↗
+                        </a>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <span className="text-lg font-bold">{job.score}</span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs ${
+                          job.elegivel
+                            ? "bg-green-50 text-green-700"
+                            : "bg-gray-100 text-gray-500"
+                        }`}
+                      >
+                        {job.elegivel ? "elegível" : "descartada"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {job.elegivel && !app && (
+                    <button
+                      onClick={() => prepareRemotive(job.externalId)}
+                      disabled={rmPrepId === job.externalId}
+                      className="mt-3 rounded-lg bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                    >
+                      {rmPrepId === job.externalId
+                        ? "Escrevendo..."
+                        : "Preparar proposta"}
+                    </button>
+                  )}
+
+                  {app && (
+                    <div className="mt-3 space-y-3 rounded-lg bg-gray-50 p-4">
                       <p className="whitespace-pre-wrap text-sm">
                         {app.proposta}
                       </p>
@@ -461,18 +911,21 @@ export default function VagasPage() {
                         >
                           Copiar proposta
                         </button>
-                        {app.status !== "enviada" && (
-                          <button
-                            onClick={() => sendApp(job.externalId)}
-                            disabled={sendLoadingId === job.externalId}
-                            className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+                        {job.url && (
+                          <a
+                            href={job.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-medium text-white"
                           >
-                            {sendLoadingId === job.externalId
-                              ? "Registrando..."
-                              : "Marcar como enviada"}
-                          </button>
+                            Aplicar no site ↗
+                          </a>
                         )}
                       </div>
+                      <p className="text-xs text-gray-400">
+                        Já está no seu Acompanhamento. Aplique no site e marque
+                        como enviada.
+                      </p>
                     </div>
                   )}
                 </li>
@@ -482,32 +935,159 @@ export default function VagasPage() {
         )}
       </section>
 
+      {/* Outras plataformas (copiloto) */}
+      <section className="mt-12 space-y-4 border-t border-gray-200 pt-8">
+        <h2 className="text-2xl font-semibold">Outras plataformas (copiloto)</h2>
+        <p className="text-gray-500">
+          LinkedIn, Workana, Upwork e outros não têm API aberta — então você
+          traz a vaga e a IA escreve a proposta. Cole o texto da vaga abaixo;
+          depois é só copiar a proposta e aplicar no site.
+        </p>
+
+        <form onSubmit={analisarVagaAvulsa} className="space-y-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="text-sm text-gray-600">
+              Plataforma
+              <select
+                value={mPlataforma}
+                onChange={(e) => setMPlataforma(e.target.value)}
+                className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-black"
+              >
+                <option value="linkedin">LinkedIn</option>
+                <option value="workana">Workana</option>
+                <option value="upwork">Upwork</option>
+                <option value="fiverr">Fiverr</option>
+                <option value="outro">Outro</option>
+              </select>
+            </label>
+            <label className="text-sm text-gray-600">
+              Link da vaga (opcional)
+              <input
+                type="url"
+                value={mLink}
+                onChange={(e) => setMLink(e.target.value)}
+                placeholder="https://..."
+                className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-black"
+              />
+            </label>
+          </div>
+          <input
+            type="text"
+            value={mTitulo}
+            onChange={(e) => setMTitulo(e.target.value)}
+            placeholder="Título da vaga"
+            className="block w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-black"
+          />
+          <textarea
+            value={mDescricao}
+            onChange={(e) => setMDescricao(e.target.value)}
+            placeholder="Cole aqui a descrição completa da vaga..."
+            rows={6}
+            className="block w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-black"
+          />
+          <button
+            type="submit"
+            disabled={mLoading}
+            className="rounded-lg bg-black px-6 py-3 font-medium text-white disabled:opacity-50"
+          >
+            {mLoading
+              ? "IA escrevendo proposta..."
+              : "Analisar e escrever proposta"}
+          </button>
+        </form>
+
+        {mError && (
+          <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-red-700">
+            {mError}
+          </div>
+        )}
+
+        {mResult && (
+          <div className="space-y-3 rounded-lg bg-gray-50 p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs uppercase text-gray-400">
+                Proposta — {mResult.titulo}
+              </span>
+              <span className="rounded-full bg-green-50 px-3 py-1 text-xs text-green-700">
+                salva no acompanhamento
+              </span>
+            </div>
+            <p className="whitespace-pre-wrap text-sm">{mResult.proposta}</p>
+            <p className="text-xs text-gray-500">
+              Valor sugerido: {mResult.valorSugerido} · Prazo:{" "}
+              {mResult.prazoSugerido}
+            </p>
+            {mResult.pontosFortes.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {mResult.pontosFortes.map((p) => (
+                  <span
+                    key={p}
+                    className="rounded-full bg-green-50 px-3 py-1 text-xs text-green-700"
+                  >
+                    {p}
+                  </span>
+                ))}
+              </div>
+            )}
+            <button
+              onClick={() => navigator.clipboard.writeText(mResult.proposta)}
+              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
+            >
+              Copiar proposta
+            </button>
+          </div>
+        )}
+      </section>
+
       {/* Acompanhamento */}
       <section className="mt-12 space-y-4 border-t border-gray-200 pt-8">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <h2 className="text-2xl font-semibold">Acompanhamento</h2>
-          <button
-            onClick={loadTracker}
-            disabled={trackerLoading}
-            className="rounded-lg border border-gray-300 px-4 py-2 text-sm disabled:opacity-50"
-          >
-            {trackerLoading ? "Atualizando..." : "Atualizar"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={syncStatus}
+              disabled={syncLoading}
+              className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            >
+              {syncLoading ? "Checando..." : "Atualizar status"}
+            </button>
+            <button
+              onClick={loadTracker}
+              disabled={trackerLoading}
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm disabled:opacity-50"
+            >
+              {trackerLoading ? "..." : "Recarregar"}
+            </button>
+          </div>
         </div>
 
+        {syncMsg && <p className="text-sm text-gray-600">{syncMsg}</p>}
+        <p className="text-xs text-gray-400">
+          Este painel só acompanha — para <strong>enviar</strong> candidaturas,
+          use a seção <strong>Caça de vagas</strong> acima ↑. &quot;Atualizar
+          status&quot; consulta o Freelancer e marca cada lance como aceito,
+          recusado ou em shortlist (é grátis, não gasta seus bids).
+        </p>
+
         {funnel && (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {(["aguardando_envio", "enviada", "respondida", "rascunho"] as const).map(
-              (k) => (
-                <div
-                  key={k}
-                  className="rounded-lg border border-gray-200 p-3 text-center"
-                >
-                  <div className="text-2xl font-bold">{funnel[k] ?? 0}</div>
-                  <div className="text-xs text-gray-500">{STATUS_LABEL[k]}</div>
-                </div>
-              ),
-            )}
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
+            {(
+              [
+                "aguardando_envio",
+                "enviada",
+                "shortlist",
+                "aceita",
+                "recusada",
+              ] as const
+            ).map((k) => (
+              <div
+                key={k}
+                className="rounded-lg border border-gray-200 p-3 text-center"
+              >
+                <div className="text-2xl font-bold">{funnel[k] ?? 0}</div>
+                <div className="text-xs text-gray-500">{STATUS_LABEL[k]}</div>
+              </div>
+            ))}
           </div>
         )}
 
@@ -516,36 +1096,116 @@ export default function VagasPage() {
             {trackerItems.map((item) => (
               <li
                 key={item.id}
-                className="flex items-center justify-between gap-4 rounded-lg border border-gray-200 p-3"
+                className="rounded-lg border border-gray-200 p-3"
               >
-                <div>
-                  <p className="text-sm font-medium">{item.titulo}</p>
-                  <p className="text-xs text-gray-400">
-                    {item.canal} · {item.modoEnvio}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium">{item.titulo}</p>
+                    <p className="text-xs text-gray-400">
+                      {item.canal} · {item.modoEnvio}
+                    </p>
+                  </div>
                   <span
-                    className={`rounded-full px-2 py-0.5 text-xs ${
-                      item.status === "respondida"
-                        ? "bg-blue-100 text-blue-700"
-                        : item.status === "enviada"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-amber-100 text-amber-700"
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${
+                      item.status === "aceita"
+                        ? "bg-green-100 text-green-700"
+                        : item.status === "recusada"
+                          ? "bg-red-100 text-red-700"
+                          : item.status === "shortlist" ||
+                              item.status === "respondida"
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-amber-100 text-amber-700"
                     }`}
                   >
                     {STATUS_LABEL[item.status] ?? item.status}
                   </span>
-                  {item.status === "enviada" && (
-                    <button
-                      onClick={() => simulateResponse(item.id)}
-                      disabled={respondLoadingId === item.id}
-                      className="rounded-lg border border-gray-300 px-3 py-1 text-xs disabled:opacity-50"
-                    >
-                      {respondLoadingId === item.id ? "..." : "Simular resposta"}
-                    </button>
-                  )}
                 </div>
+
+                {item.status === "aguardando_envio" ? (
+                  <div className="mt-3 space-y-2">
+                    {item.canal === "freelancer" ? (
+                      <>
+                        <p className="text-xs text-amber-700">
+                          ⚠️ Preparada mas ainda não enviada — envie o lance ou
+                          descarte.
+                        </p>
+                        <div className="flex flex-wrap items-end gap-3">
+                          <label className="text-xs text-gray-500">
+                            Valor
+                            <input
+                              type="number"
+                              min={1}
+                              value={trkInputs[item.id]?.amount ?? ""}
+                              onChange={(e) =>
+                                setTrkInputs((prev) => ({
+                                  ...prev,
+                                  [item.id]: {
+                                    ...prev[item.id],
+                                    amount: e.target.value,
+                                  },
+                                }))
+                              }
+                              className="mt-1 block w-28 rounded-lg border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-black"
+                            />
+                          </label>
+                          <label className="text-xs text-gray-500">
+                            Prazo (dias)
+                            <input
+                              type="number"
+                              min={1}
+                              value={trkInputs[item.id]?.period ?? ""}
+                              onChange={(e) =>
+                                setTrkInputs((prev) => ({
+                                  ...prev,
+                                  [item.id]: {
+                                    ...prev[item.id],
+                                    period: e.target.value,
+                                  },
+                                }))
+                              }
+                              className="mt-1 block w-24 rounded-lg border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-black"
+                            />
+                          </label>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-xs text-amber-700">
+                        ⚠️ Proposta pronta — aplique no site ({item.canal}) e
+                        marque como enviada (ou descarte).
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => sendFromTracker(item)}
+                        disabled={trkSendId === item.id}
+                        className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+                      >
+                        {trkSendId === item.id
+                          ? "Salvando..."
+                          : item.canal === "freelancer"
+                            ? "Enviar lance"
+                            : "Marcar como enviada"}
+                      </button>
+                      <button
+                        onClick={() => discardApp(item.id)}
+                        disabled={trkDelId === item.id}
+                        className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-red-600 hover:border-red-400 disabled:opacity-50"
+                      >
+                        {trkDelId === item.id ? "..." : "Descartar"}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-2 flex justify-end">
+                    <button
+                      onClick={() => discardApp(item.id)}
+                      disabled={trkDelId === item.id}
+                      className="text-xs text-gray-400 underline hover:text-red-600 disabled:opacity-50"
+                    >
+                      {trkDelId === item.id ? "..." : "Remover"}
+                    </button>
+                  </div>
+                )}
               </li>
             ))}
           </ul>

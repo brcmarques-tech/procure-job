@@ -57,8 +57,10 @@ export async function placeBid(
     amount: number;
     period: number; // dias
     description: string;
+    milestonePercentage?: number; // % do valor pedido em milestone (escrow)
   },
 ): Promise<{ id: number }> {
+  // A API de lances usa JSON e exige milestone_percentage.
   const res = await fetch(`${BASE_URL}/projects/0.1/bids/`, {
     method: "POST",
     headers: authHeaders(token),
@@ -67,6 +69,7 @@ export async function placeBid(
       bidder_id: params.bidderId,
       amount: params.amount,
       period: params.period,
+      milestone_percentage: params.milestonePercentage ?? 100,
       description: params.description,
     }),
   });
@@ -75,6 +78,34 @@ export async function placeBid(
   }
   const data = await res.json();
   return data?.result;
+}
+
+export interface FreelancerBid {
+  id: number;
+  award_status: string | null; // pending | awarded | rejected | revoked
+  shortlisted: boolean;
+}
+
+/** Lê o status atual de um conjunto de lances (para sincronizar resultados). */
+export async function getBids(
+  token: string,
+  bidIds: number[],
+): Promise<FreelancerBid[]> {
+  if (!bidIds.length) return [];
+  const url = new URL(`${BASE_URL}/projects/0.1/bids/`);
+  for (const id of bidIds) url.searchParams.append("bids[]", String(id));
+  const res = await fetch(url, { headers: authHeaders(token) });
+  if (!res.ok) {
+    throw new Error(`getBids falhou: ${res.status} ${await res.text()}`);
+  }
+  const bids = (await res.json())?.result?.bids ?? [];
+  // O endpoint pode devolver array ou objeto indexado por id.
+  const arr = Array.isArray(bids) ? bids : Object.values(bids);
+  return arr.map((b: { id: number; award_status?: string; shortlisted?: boolean }) => ({
+    id: b.id,
+    award_status: b.award_status ?? null,
+    shortlisted: Boolean(b.shortlisted),
+  }));
 }
 
 export interface FreelancerSelf {

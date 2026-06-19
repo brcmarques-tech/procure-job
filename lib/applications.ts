@@ -1,13 +1,35 @@
 import { prisma } from "./db";
 import { writeProposal } from "./proposals";
+import { getValidToken } from "./freelancerAuth";
+import { placeBid, getSelfProfile, getBids } from "./freelancer";
 import type { ProfileDraft } from "./profile";
+
+/** Extrai o valor numérico de uma string como "R$ 1.500" -> 1500. */
+function parseValor(s?: string | null): number {
+  if (!s) return 0;
+  const digits = s.replace(/[^\d]/g, "");
+  return digits ? Number(digits) : 0;
+}
+
+/** Extrai o prazo em dias de uma string como "7 dias" / "2 semanas" -> 7 / 14. */
+function parsePrazo(s?: string | null): number {
+  if (!s) return 7;
+  const n = Number((s.match(/\d+/) ?? ["7"])[0]);
+  if (/semana/i.test(s)) return n * 7;
+  if (/m[eê]s/i.test(s)) return n * 30;
+  return n || 7;
+}
 
 /**
  * M5 — Fluxo copiloto.
  * Conecta a caça de vagas (M3) ao motor de proposta (M4): a partir de uma
  * vaga elegível, gera a proposta e deixa a candidatura "aguardando_envio".
  */
-export async function prepareApplication(userId: string, externalId: string) {
+export async function prepareApplication(
+  userId: string,
+  externalId: string,
+  tipo: string = "freelancer",
+) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: { profile: true, portfolio: true },
@@ -15,7 +37,7 @@ export async function prepareApplication(userId: string, externalId: string) {
   if (!user || !user.profile) throw new Error("Perfil não encontrado.");
 
   const channel = await prisma.channel.findUnique({
-    where: { userId_tipo: { userId, tipo: "freelancer" } },
+    where: { userId_tipo: { userId, tipo } },
   });
   if (!channel) throw new Error("Rode a caça de vagas primeiro.");
 
@@ -80,22 +102,214 @@ export async function prepareApplication(userId: string, externalId: string) {
 }
 
 /**
- * Registra o envio de uma candidatura.
- * - Canal 🟢 auto com token: aqui entraria o bid real via API (v2 — exige o
- *   id do usuário no Freelancer e valores numéricos). Por ora registra o envio.
- * - Canal 🟡 copiloto: o usuário envia no navegador dele; só registramos.
+ * Canal universal (copiloto) — vaga de qualquer plataforma sem API.
+ * O usuário cola a vaga (LinkedIn, Workana, Upwork...), a IA escreve a
+ * proposta sob medida e a candidatura entra no acompanhamento. O envio é
+ * manual (o usuário aplica no site), pois essas plataformas não têm API.
  */
-export async function sendApplication(applicationId: string) {
+export async function prepareManualApplication(
+  userId: string,
+  input: { plataforma: string; titulo: string; descricao: string; link?: string },
+) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { profile: true, portfolio: true },
+  });
+  if (!user || !user.profile) throw new Error("Perfil não encontrado.");
+
+  const profile: ProfileDraft = {
+    area: user.profile.area,
+    skills: JSON.parse(user.profile.skills),
+    resumoBio: user.profile.resumoBio,
+    experiencias: JSON.parse(user.profile.experiencias),
+    keywordsBusca: JSON.parse(user.profile.keywordsBusca),
+  };
+
+  const channel = await prisma.channel.upsert({
+    where: { userId_tipo: { userId, tipo: input.plataforma } },
+    update: {},
+    create: { userId, tipo: input.plataforma, modo: "copiloto" },
+  });
+
+  const externalId = input.link?.trim() || `manual-${crypto.randomUUID()}`;
+  const job = await prisma.job.upsert({
+    where: { channelId_externalId: { channelId: channel.id, externalId } },
+    update: { titulo: input.titulo, descricao: input.descricao },
+    create: {
+      channelId: channel.id,
+      externalId,
+      titulo: input.titulo,
+      descricao: input.descricao,
+      statusVaga: "elegivel",
+    },
+  });
+
+  const base = process.env.APP_BASE_URL ?? "http://localhost:3000";
+  const portfolioUrl = user.portfolio
+    ? `${base}/p/${user.portfolio.publicSlug}`
+    : "(portfólio ainda não gerado)";
+
+  const proposal = await writeProposal({
+    profile,
+    portfolioUrl,
+    jobTitle: input.titulo,
+    jobDescription: input.descricao,
+  });
+
+  const application = await prisma.application.upsert({
+    where: { jobId: job.id },
+    update: {
+      propostaTexto: proposal.proposta,
+      valorSugerido: proposal.valorSugerido,
+      prazoSugerido: proposal.prazoSugerido,
+      status: "aguardando_envio",
+      modoEnvio: "copiloto",
+    },
+    create: {
+      jobId: job.id,
+      propostaTexto: proposal.proposta,
+      valorSugerido: proposal.valorSugerido,
+      prazoSugerido: proposal.prazoSugerido,
+      status: "aguardando_envio",
+      modoEnvio: "copiloto",
+    },
+  });
+
+  return {
+    applicationId: application.id,
+    plataforma: input.plataforma,
+    titulo: input.titulo,
+    proposta: proposal.proposta,
+    valorSugerido: proposal.valorSugerido,
+    prazoSugerido: proposal.prazoSugerido,
+    pontosFortes: proposal.pontosFortes,
+  };
+}
+
+/**
+ * Envia a candidatura.
+ * - Com token do Freelancer: submete o LANCE REAL via API (placeBid), usando o
+ *   valor/prazo confirmados pelo usuário (copiloto 1-clique). Só marca como
+ *   "enviada" se o lance for aceito pela plataforma.
+ * - Sem token: apenas registra o envio (modo manual/copiar-e-colar).
+ */
+export async function sendApplication(
+  applicationId: string,
+  opts?: { amount?: number; period?: number },
+) {
   const application = await prisma.application.findUnique({
     where: { id: applicationId },
     include: { job: { include: { channel: true } } },
   });
   if (!application) throw new Error("Candidatura não encontrada.");
 
+  const job = application.job;
+  const userId = job.channel.userId;
+  // Lance real só no Freelancer (tem API). Outros canais são copiloto: o
+  // usuário aplica no site e a gente só registra o envio.
+  const isFreelancer = job.channel.tipo === "freelancer";
+  const token = isFreelancer ? await getValidToken(userId) : null;
+
+  let bidId: number | null = null;
+  if (token) {
+    const projectId = Number(job.externalId);
+    if (!Number.isFinite(projectId)) {
+      throw new Error("ID do projeto inválido para envio de lance.");
+    }
+    const amount = opts?.amount ?? parseValor(application.valorSugerido);
+    const period = opts?.period ?? parsePrazo(application.prazoSugerido);
+    if (!amount || amount <= 0) {
+      throw new Error("Informe um valor de lance maior que zero.");
+    }
+    const self = await getSelfProfile(token);
+    const bid = await placeBid(token, {
+      projectId,
+      bidderId: self.id,
+      amount,
+      period: period > 0 ? period : 7,
+      description: application.propostaTexto,
+    });
+    bidId = bid?.id ?? null;
+  }
+
   const updated = await prisma.application.update({
     where: { id: applicationId },
-    data: { status: "enviada", enviadaEm: new Date() },
+    data: {
+      status: "enviada",
+      enviadaEm: new Date(),
+      ...(bidId ? { bidExternalId: String(bidId) } : {}),
+    },
   });
 
-  return { applicationId: updated.id, status: updated.status };
+  return {
+    applicationId: updated.id,
+    status: updated.status,
+    bidId,
+    real: Boolean(token),
+  };
+}
+
+/** Remove uma candidatura do acompanhamento (não mexe no Freelancer). */
+export async function deleteApplication(applicationId: string) {
+  await prisma.application.delete({ where: { id: applicationId } });
+  return { ok: true };
+}
+
+/**
+ * Sincroniza o status dos lances enviados com o Freelancer (polling).
+ * Lê o award_status de cada lance e atualiza a candidatura + registra eventos.
+ * Tudo leitura — não consome cota de bids.
+ */
+export async function syncBidStatuses(userId: string) {
+  const token = await getValidToken(userId);
+  if (!token) return { synced: 0, updated: 0 };
+
+  const apps = await prisma.application.findMany({
+    where: {
+      job: { channel: { userId } },
+      bidExternalId: { not: null },
+      status: { in: ["enviada", "shortlist"] },
+    },
+  });
+  if (!apps.length) return { synced: 0, updated: 0 };
+
+  const bidIds = apps
+    .map((a) => Number(a.bidExternalId))
+    .filter((n) => Number.isFinite(n));
+  const bids = await getBids(token, bidIds);
+  const byId = new Map(bids.map((b) => [b.id, b]));
+
+  let updated = 0;
+  for (const app of apps) {
+    const b = byId.get(Number(app.bidExternalId));
+    if (!b) continue;
+
+    let novo = app.status;
+    if (b.award_status === "awarded") novo = "aceita";
+    else if (b.award_status === "rejected" || b.award_status === "revoked")
+      novo = "recusada";
+    else if (b.shortlisted) novo = "shortlist";
+
+    if (novo !== app.status) {
+      await prisma.application.update({
+        where: { id: app.id },
+        data: {
+          status: novo,
+          respostaRecebidaEm: new Date(),
+          events: {
+            create: {
+              tipo: novo,
+              payload: JSON.stringify({
+                award_status: b.award_status,
+                shortlisted: b.shortlisted,
+              }),
+            },
+          },
+        },
+      });
+      updated++;
+    }
+  }
+
+  return { synced: apps.length, updated };
 }

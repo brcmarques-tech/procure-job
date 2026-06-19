@@ -5,6 +5,7 @@ import { prepareApplication } from "@/lib/applications";
 const schema = z.object({
   userId: z.string().min(1),
   externalId: z.string().min(1),
+  tipo: z.string().optional(),
 });
 
 /** M5 — prepara a candidatura (gera proposta, deixa "aguardando_envio"). */
@@ -17,6 +18,7 @@ export async function POST(req: NextRequest) {
     const result = await prepareApplication(
       parsed.data.userId,
       parsed.data.externalId,
+      parsed.data.tipo,
     );
     return Response.json(result);
   } catch (e) {

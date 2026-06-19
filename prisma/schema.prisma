@@ -87,8 +87,9 @@ model Application {
   propostaTexto      String
   valorSugerido      String?
   prazoSugerido      String?
-  status             String    @default("rascunho") // rascunho | aguardando_envio | enviada | respondida
+  status             String    @default("rascunho") // rascunho | aguardando_envio | enviada | shortlist | aceita | recusada | respondida
   modoEnvio          String // auto | copiloto
+  bidExternalId      String? // id do lance no Freelancer (para sincronizar status)
   enviadaEm          DateTime?
   respostaRecebidaEm DateTime?
   createdAt          DateTime  @default(now())

@@ -6,6 +6,7 @@ import {
 } from "./freelancer";
 import { scoreJobsBatch } from "./jobs";
 import { getValidToken } from "./freelancerAuth";
+import { searchRemotiveJobs } from "./remotive";
 import type { ProfileDraft } from "./profile";
 
 /** Score mínimo para uma vaga ser considerada elegível para candidatura. */
@@ -43,6 +44,8 @@ export interface HuntedJob {
   score: number;
   motivo: string;
   elegivel: boolean;
+  url?: string | null; // link para aplicar (canais copiloto, ex.: Remotive)
+  empresa?: string | null;
 }
 
 /** Evento de progresso emitido durante a caça (para a UI ao vivo). */
@@ -187,4 +190,108 @@ export async function huntJobs(
 
   hunted.sort((a, b) => b.score - a.score);
   return { mode, jobs: hunted };
+}
+
+/**
+ * Caça de vagas REMOTAS (Remotive — API aberta, grátis).
+ * Busca, pontua com IA e persiste sob o canal "remotive" (copiloto: o usuário
+ * aplica no link da vaga). Mesma experiência ao vivo da caça do Freelancer.
+ */
+export async function huntRemotiveJobs(
+  userId: string,
+  onEvent?: (e: HuntProgress) => void,
+): Promise<{ jobs: HuntedJob[] }> {
+  const emit = (e: HuntProgress) => onEvent?.(e);
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { profile: true },
+  });
+  if (!user || !user.profile) throw new Error("Perfil não encontrado.");
+
+  const profile: ProfileDraft = {
+    area: user.profile.area,
+    skills: JSON.parse(user.profile.skills),
+    resumoBio: user.profile.resumoBio,
+    experiencias: JSON.parse(user.profile.experiencias),
+    keywordsBusca: JSON.parse(user.profile.keywordsBusca),
+  };
+
+  emit({ phase: "search", message: "Buscando vagas remotas (Remotive)..." });
+
+  const keywords = profile.keywordsBusca.slice(0, 3);
+  const results = await Promise.all(
+    keywords.map((k) => searchRemotiveJobs(k, 15).catch(() => [])),
+  );
+  const byId = new Map<number, (typeof results)[number][number]>();
+  for (const j of results.flat()) byId.set(j.id, j);
+  let vagas = [...byId.values()];
+
+  const total = vagas.length;
+  vagas = vagas.slice(0, MAX_TO_SCORE);
+  emit({
+    phase: "searched",
+    message: `${total} vagas remotas encontradas — avaliando as ${vagas.length} mais relevantes.`,
+    count: vagas.length,
+  });
+
+  const channel = await prisma.channel.upsert({
+    where: { userId_tipo: { userId, tipo: "remotive" } },
+    update: {},
+    create: { userId, tipo: "remotive", modo: "copiloto" },
+  });
+
+  emit({
+    phase: "scoring",
+    message: `Claude está avaliando ${vagas.length} vagas remotas contra o seu perfil...`,
+    count: vagas.length,
+  });
+  const scores = await scoreJobsBatch(
+    profile,
+    vagas.map((v) => ({ title: v.title, description: v.description })),
+  );
+  emit({ phase: "scored", message: `Avaliação concluída. Salvando...` });
+
+  const hunted = await mapPool(
+    vagas.map((v, i) => ({ v, scored: scores[i] })),
+    SCORE_CONCURRENCY,
+    async ({ v, scored }) => {
+      const elegivel = scored.score >= SCORE_THRESHOLD;
+      await prisma.job.upsert({
+        where: {
+          channelId_externalId: {
+            channelId: channel.id,
+            externalId: String(v.id),
+          },
+        },
+        update: {
+          score: scored.score,
+          statusVaga: elegivel ? "elegivel" : "descartada",
+        },
+        create: {
+          channelId: channel.id,
+          externalId: String(v.id),
+          titulo: v.title,
+          descricao: v.description,
+          budget: null,
+          skills: "[]",
+          score: scored.score,
+          statusVaga: elegivel ? "elegivel" : "descartada",
+        },
+      });
+      return {
+        externalId: String(v.id),
+        titulo: v.title,
+        budget: null,
+        score: scored.score,
+        motivo: scored.motivo,
+        elegivel,
+        url: v.url,
+        empresa: v.company,
+      } satisfies HuntedJob;
+    },
+  );
+
+  hunted.sort((a, b) => b.score - a.score);
+  return { jobs: hunted };
 }

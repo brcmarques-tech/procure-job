@@ -7,6 +7,8 @@ export interface TrackerItem {
   canal: string;
   status: string;
   modoEnvio: string;
+  valorSugerido: string | null;
+  prazoSugerido: string | null;
   enviadaEm: string | null;
   respostaRecebidaEm: string | null;
 }
@@ -31,15 +33,18 @@ export async function listApplications(userId: string): Promise<{
     canal: a.job.channel.tipo,
     status: a.status,
     modoEnvio: a.modoEnvio,
+    valorSugerido: a.valorSugerido,
+    prazoSugerido: a.prazoSugerido,
     enviadaEm: a.enviadaEm?.toISOString() ?? null,
     respostaRecebidaEm: a.respostaRecebidaEm?.toISOString() ?? null,
   }));
 
   const funnel = {
-    rascunho: 0,
     aguardando_envio: 0,
     enviada: 0,
-    respondida: 0,
+    shortlist: 0,
+    aceita: 0,
+    recusada: 0,
   };
   for (const i of items) {
     if (i.status in funnel) funnel[i.status as keyof typeof funnel]++;
