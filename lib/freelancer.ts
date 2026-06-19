@@ -22,7 +22,39 @@ export interface FreelancerProject {
   budget?: { minimum?: number; maximum?: number };
   currency?: { code?: string };
   jobs?: { name: string }[];
+  upgrades?: Record<string, unknown>;
 }
+
+/**
+ * Se a vaga é restrita para uma conta gratuita (não dá pra dar lance), devolve
+ * o motivo em PT; senão null. Baseado nos flags de `upgrades` do projeto.
+ */
+export function bidRestriction(
+  upgrades?: Record<string, unknown> | null,
+): string | null {
+  if (!upgrades) return null;
+  if (upgrades.pf_only || upgrades.recruiter)
+    return "Só para Preferred Freelancers (plano pago)";
+  if (upgrades.featured)
+    return "Vaga destacada (exige avaliações, plano pago ou conta verificada)";
+  if (upgrades.NDA) return "Exige assinar NDA antes do lance";
+  return null;
+}
+
+/** Mapeia códigos de erro de lance do Freelancer para mensagens claras em PT. */
+const FREELANCER_BID_ERRORS: Record<string, string> = {
+  "ProjectExceptionCodes.UNLISTED_NOT_PREFERRED":
+    "Essa vaga é só para Preferred Freelancers (plano pago do Freelancer). Pule ou assine o plano.",
+  "ProjectExceptionCodes.RESTRICTED_FROM_BIDDING_ON_FEATURED":
+    "Vaga destacada: exige pelo menos 5 avaliações, plano pago ou conta verificada.",
+  "ProjectExceptionCodes.PROJECT_NOT_ACTIVE":
+    "Essa vaga não está mais ativa (fechada ou expirada).",
+  "BidExceptionCodes.BID_ALREADY_EXISTS": "Você já deu lance nessa vaga.",
+  "ProjectExceptionCodes.NOT_ENOUGH_BIDS":
+    "Você não tem lances disponíveis no seu plano este mês.",
+  "ProjectExceptionCodes.NDA_NOT_SIGNED":
+    "Essa vaga exige assinar um NDA antes de dar lance (faça isso no site).",
+};
 
 /**
  * Busca projetos ativos por palavras-chave. (canal 🟢)
@@ -38,6 +70,7 @@ export async function searchActiveProjects(
   url.searchParams.set("query", query);
   url.searchParams.set("job_details", "true");
   url.searchParams.set("full_description", "true");
+  url.searchParams.set("upgrade_details", "true"); // flags de restrição (pf_only, NDA...)
   url.searchParams.set("limit", String(limit));
 
   const res = await fetch(url, { headers: authHeaders(token) });
@@ -74,7 +107,19 @@ export async function placeBid(
     }),
   });
   if (!res.ok) {
-    throw new Error(`placeBid falhou: ${res.status} ${await res.text()}`);
+    const body = await res.text();
+    let code = "";
+    try {
+      code = JSON.parse(body)?.error_code ?? "";
+    } catch {
+      /* corpo não-JSON */
+    }
+    const friendly = FREELANCER_BID_ERRORS[code];
+    throw new Error(
+      friendly
+        ? `${friendly}${code ? ` [${code}]` : ""}`
+        : `placeBid falhou: ${res.status} ${body}`,
+    );
   }
   const data = await res.json();
   return data?.result;

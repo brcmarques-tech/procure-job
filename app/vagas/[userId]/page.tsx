@@ -16,6 +16,8 @@ interface HuntedJobUI {
   url?: string | null;
   empresa?: string | null;
   fonte?: string | null;
+  restrita?: boolean;
+  restricaoMotivo?: string | null;
 }
 
 interface PreparedAppUI {
@@ -651,11 +653,16 @@ export default function VagasPage() {
                           Orçamento: {job.budget}
                         </p>
                       )}
+                      {job.restrita && (
+                        <p className="mt-2 inline-block bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700">
+                          🔒 Restrita — {job.restricaoMotivo}
+                        </p>
+                      )}
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1">
                       <span className="text-lg font-bold">{job.score}</span>
                       <span
-                        className={`rounded-full px-2 py-0.5 text-xs ${
+                        className={`px-2 py-0.5 text-xs ${
                           job.elegivel
                             ? "bg-green-50 text-green-700"
                             : "bg-slate-100 text-slate-500"
@@ -666,17 +673,34 @@ export default function VagasPage() {
                     </div>
                   </div>
 
-                  {job.elegivel && !app && (
-                    <button
-                      onClick={() => prepareApp(job.externalId)}
-                      disabled={prepLoadingId === job.externalId}
-                      className="mt-3 rounded-lg bg-[#3398DB] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b82c2] disabled:opacity-50"
-                    >
-                      {prepLoadingId === job.externalId
-                        ? "Preparando..."
-                        : "Preparar candidatura"}
-                    </button>
-                  )}
+                  {job.elegivel &&
+                    !app &&
+                    (job.restrita ? (
+                      <div className="mt-3 flex flex-wrap items-center gap-3">
+                        <span className="text-xs text-slate-400">
+                          Não dá pra enviar o lance daqui (conta gratuita).
+                        </span>
+                        <button
+                          onClick={() => prepareApp(job.externalId)}
+                          disabled={prepLoadingId === job.externalId}
+                          className="border border-slate-300 px-3 py-1.5 text-sm text-slate-600 transition hover:border-slate-400 disabled:opacity-50"
+                        >
+                          {prepLoadingId === job.externalId
+                            ? "Preparando..."
+                            : "Preparar mesmo assim"}
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => prepareApp(job.externalId)}
+                        disabled={prepLoadingId === job.externalId}
+                        className="mt-3 bg-[#3398DB] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b82c2] disabled:opacity-50"
+                      >
+                        {prepLoadingId === job.externalId
+                          ? "Preparando..."
+                          : "Preparar candidatura"}
+                      </button>
+                    ))}
 
                   {app && (
                     <div className="mt-3 space-y-3 rounded-lg bg-slate-50 p-4">

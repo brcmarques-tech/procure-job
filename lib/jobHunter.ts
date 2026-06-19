@@ -1,6 +1,7 @@
 import { prisma } from "./db";
 import {
   searchActiveProjects,
+  bidRestriction,
   MOCK_PROJECTS,
   type FreelancerProject,
 } from "./freelancer";
@@ -47,6 +48,8 @@ export interface HuntedJob {
   url?: string | null; // link para aplicar (canais copiloto, ex.: Remotive)
   empresa?: string | null;
   fonte?: string | null; // quadro de origem (Remotive, RemoteOK, ...)
+  restrita?: boolean; // não dá pra dar lance (conta gratuita)
+  restricaoMotivo?: string | null; // por quê (ex.: só Preferred Freelancers)
 }
 
 /** Evento de progresso emitido durante a caça (para a UI ao vivo). */
@@ -152,6 +155,7 @@ export async function huntJobs(
     SCORE_CONCURRENCY,
     async ({ p, scored }) => {
     const elegivel = scored.score >= SCORE_THRESHOLD;
+    const restricaoMotivo = bidRestriction(p.upgrades);
     const budget = p.budget
       ? `${p.budget.minimum ?? "?"} - ${p.budget.maximum ?? "?"}`
       : null;
@@ -186,6 +190,8 @@ export async function huntJobs(
       score: scored.score,
       motivo: scored.motivo,
       elegivel,
+      restrita: Boolean(restricaoMotivo),
+      restricaoMotivo,
     } satisfies HuntedJob;
   });
 
