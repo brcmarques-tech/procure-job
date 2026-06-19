@@ -48,13 +48,19 @@ async function generateText(opts: {
 
   // Sem API key → usa a autenticação do Claude Code (assinatura).
   let out = "";
+  const t0 = Date.now();
+  console.log(`[claude-code] iniciando sessão (${opts.model})...`);
   for await (const message of query({
     prompt: `${opts.system}\n\n${opts.user}`,
     // Sem ferramentas (geração de texto puro); maxTurns folgado para
     // respostas grandes (ex.: portfólio HTML/CSS) não estourarem o limite.
     options: { allowedTools: [], maxTurns: 8, model: opts.model },
   })) {
-    const m = message as { result?: string };
+    const m = message as { type?: string; subtype?: string; result?: string };
+    const dt = ((Date.now() - t0) / 1000).toFixed(1);
+    console.log(
+      `[claude-code] +${dt}s ${m.type ?? "?"}${m.subtype ? "/" + m.subtype : ""}`,
+    );
     if (typeof m.result === "string") out = m.result;
   }
   return out;

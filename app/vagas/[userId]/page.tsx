@@ -62,6 +62,8 @@ export default function VagasPage() {
   const [huntError, setHuntError] = useState<string | null>(null);
   const [huntMode, setHuntMode] = useState<string | null>(null);
   const [huntedJobs, setHuntedJobs] = useState<HuntedJobUI[]>([]);
+  const [huntLog, setHuntLog] = useState<string[]>([]);
+  const [huntElapsed, setHuntElapsed] = useState(0);
 
   // Fluxo copiloto
   const [prepLoadingId, setPrepLoadingId] = useState<string | null>(null);
@@ -125,16 +127,45 @@ export default function VagasPage() {
   async function runHunt() {
     setHuntLoading(true);
     setHuntError(null);
+    setHuntLog([]);
+    setHuntElapsed(0);
+    setHuntedJobs([]);
     try {
-      const res = await fetch("/api/jobs/hunt", {
+      const res = await fetch("/api/jobs/hunt/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Erro desconhecido.");
-      setHuntMode(data.mode);
-      setHuntedJobs(data.jobs);
+      if (!res.ok || !res.body) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error ?? "Falha ao iniciar a busca.");
+      }
+      // Lê o stream SSE evento a evento.
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() ?? "";
+        for (const part of parts) {
+          const line = part.split("\n").find((l) => l.startsWith("data:"));
+          if (!line) continue;
+          const e = JSON.parse(line.slice(5).trim());
+          if (e.type === "status") {
+            setHuntLog((prev) => [...prev, e.message as string]);
+          } else if (e.type === "tick") {
+            setHuntElapsed(e.seconds as number);
+          } else if (e.type === "result") {
+            setHuntMode(e.mode);
+            setHuntedJobs(e.jobs);
+          } else if (e.type === "error") {
+            setHuntError(e.message as string);
+          }
+        }
+      }
     } catch (err) {
       setHuntError((err as Error).message);
     } finally {
@@ -274,9 +305,17 @@ export default function VagasPage() {
 
         <div className="flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 p-3">
           {fcConnected ? (
-            <span className="text-sm font-medium text-green-700">
-              ✓ Conectado ao Freelancer — busca de vagas reais ativa
-            </span>
+            <>
+              <span className="text-sm font-medium text-green-700">
+                ✓ Conectado ao Freelancer — busca de vagas reais ativa
+              </span>
+              <a
+                href={`/perfil-freelancer/${userId}`}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:border-black"
+              >
+                Otimizar perfil →
+              </a>
+            </>
           ) : fcConfigured ? (
             <>
               <span className="text-sm text-gray-600">
@@ -304,6 +343,29 @@ export default function VagasPage() {
         >
           {huntLoading ? "Buscando vagas..." : "Buscar vagas"}
         </button>
+
+        {(huntLoading || huntLog.length > 0) && (
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              {huntLoading ? (
+                <>
+                  <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-black" />
+                  <span>Claude trabalhando… {huntElapsed}s</span>
+                </>
+              ) : (
+                <span className="text-green-700">✓ Busca concluída</span>
+              )}
+            </div>
+            <ul className="mt-3 space-y-1.5 text-sm text-gray-600">
+              {huntLog.map((m, i) => (
+                <li key={i} className="flex gap-2">
+                  <span className="text-green-600">✓</span>
+                  <span>{m}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {huntMode === "mock" && (
           <p className="text-sm text-amber-600">

@@ -4,12 +4,37 @@ import {
   MOCK_PROJECTS,
   type FreelancerProject,
 } from "./freelancer";
-import { scoreJob } from "./jobs";
+import { scoreJobsBatch } from "./jobs";
 import { getValidToken } from "./freelancerAuth";
 import type { ProfileDraft } from "./profile";
 
 /** Score mínimo para uma vaga ser considerada elegível para candidatura. */
 export const SCORE_THRESHOLD = 60;
+
+/** Teto de vagas pontuadas por busca — controla custo de IA e tempo. */
+const MAX_TO_SCORE = 40;
+/** Quantas pontuações de IA rodam ao mesmo tempo. */
+const SCORE_CONCURRENCY = 8;
+
+/** map com limite de concorrência (evita disparar N chamadas de IA de uma vez). */
+async function mapPool<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  async function worker() {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i]);
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, items.length) }, worker),
+  );
+  return out;
+}
 
 export interface HuntedJob {
   externalId: string;
@@ -20,6 +45,13 @@ export interface HuntedJob {
   elegivel: boolean;
 }
 
+/** Evento de progresso emitido durante a caça (para a UI ao vivo). */
+export interface HuntProgress {
+  phase: "search" | "searched" | "scoring" | "scored" | "persist";
+  message: string;
+  count?: number;
+}
+
 /**
  * M3 — Caça de vagas (Freelancer.com).
  * Busca projetos (API real com token, ou mock sem token), pontua a
@@ -27,7 +59,10 @@ export interface HuntedJob {
  */
 export async function huntJobs(
   userId: string,
+  onEvent?: (e: HuntProgress) => void,
 ): Promise<{ mode: "api" | "mock"; jobs: HuntedJob[] }> {
+  const emit = (e: HuntProgress) => onEvent?.(e);
+
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: { profile: true },
@@ -46,6 +81,13 @@ export async function huntJobs(
   let projects: FreelancerProject[] = [];
   let mode: "api" | "mock";
 
+  emit({
+    phase: "search",
+    message: token
+      ? "Buscando vagas reais no Freelancer..."
+      : "Buscando vagas (modo demonstração)...",
+  });
+
   if (token) {
     mode = "api";
     const keywords = profile.keywordsBusca.slice(0, 3);
@@ -60,19 +102,51 @@ export async function huntJobs(
     projects = MOCK_PROJECTS;
   }
 
+  // Não pontua tudo: limita ao teto para não gastar IA em centenas de vagas.
+  const totalEncontradas = projects.length;
+  projects = projects.slice(0, MAX_TO_SCORE);
+  emit({
+    phase: "searched",
+    message: `${totalEncontradas} vagas encontradas — avaliando as ${projects.length} mais relevantes.`,
+    count: projects.length,
+  });
+
   const channel = await prisma.channel.upsert({
     where: { userId_tipo: { userId, tipo: "freelancer" } },
     update: {},
     create: { userId, tipo: "freelancer", modo: "auto" },
   });
 
-  const hunted: HuntedJob[] = [];
-  for (const p of projects) {
-    const scored = await scoreJob(profile, {
+  // Pontua TODAS as vagas com IA numa ÚNICA chamada (1 sessão, não N).
+  emit({
+    phase: "scoring",
+    message: `Claude está avaliando ${projects.length} vagas contra o seu perfil...`,
+    count: projects.length,
+  });
+  console.log(
+    `[hunt] modo=${mode} — ${projects.length} vagas buscadas; pontuando com IA...`,
+  );
+  const t0 = Date.now();
+  const scores = await scoreJobsBatch(
+    profile,
+    projects.map((p) => ({
       title: p.title,
       description: p.description,
       jobs: p.jobs,
-    });
+    })),
+  );
+  const segundos = ((Date.now() - t0) / 1000).toFixed(1);
+  console.log(`[hunt] IA pontuou ${scores.length} vagas em ${segundos}s`);
+  emit({
+    phase: "scored",
+    message: `Claude avaliou ${scores.length} vagas em ${segundos}s. Salvando...`,
+  });
+
+  // Persiste em paralelo (lotes) — agora só I/O de banco, sem IA por vaga.
+  const hunted = await mapPool(
+    projects.map((p, i) => ({ p, scored: scores[i] })),
+    SCORE_CONCURRENCY,
+    async ({ p, scored }) => {
     const elegivel = scored.score >= SCORE_THRESHOLD;
     const budget = p.budget
       ? `${p.budget.minimum ?? "?"} - ${p.budget.maximum ?? "?"}`
@@ -101,15 +175,15 @@ export async function huntJobs(
       },
     });
 
-    hunted.push({
+    return {
       externalId: String(p.id),
       titulo: p.title,
       budget,
       score: scored.score,
       motivo: scored.motivo,
       elegivel,
-    });
-  }
+    } satisfies HuntedJob;
+  });
 
   hunted.sort((a, b) => b.score - a.score);
   return { mode, jobs: hunted };
