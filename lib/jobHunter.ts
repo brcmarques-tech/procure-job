@@ -6,7 +6,7 @@ import {
 } from "./freelancer";
 import { scoreJobsBatch } from "./jobs";
 import { getValidToken } from "./freelancerAuth";
-import { searchRemotiveJobs } from "./remotive";
+import { searchRemoteJobs } from "./remoteSources";
 import type { ProfileDraft } from "./profile";
 
 /** Score mínimo para uma vaga ser considerada elegível para candidatura. */
@@ -46,6 +46,7 @@ export interface HuntedJob {
   elegivel: boolean;
   url?: string | null; // link para aplicar (canais copiloto, ex.: Remotive)
   empresa?: string | null;
+  fonte?: string | null; // quadro de origem (Remotive, RemoteOK, ...)
 }
 
 /** Evento de progresso emitido durante a caça (para a UI ao vivo). */
@@ -217,16 +218,13 @@ export async function huntRemotiveJobs(
     keywordsBusca: JSON.parse(user.profile.keywordsBusca),
   };
 
-  emit({ phase: "search", message: "Buscando vagas remotas (Remotive)..." });
+  emit({
+    phase: "search",
+    message:
+      "Buscando em quadros de vagas remotas (Remotive, RemoteOK, Arbeitnow, WeWorkRemotely)...",
+  });
 
-  const keywords = profile.keywordsBusca.slice(0, 3);
-  const results = await Promise.all(
-    keywords.map((k) => searchRemotiveJobs(k, 15).catch(() => [])),
-  );
-  const byId = new Map<number, (typeof results)[number][number]>();
-  for (const j of results.flat()) byId.set(j.id, j);
-  let vagas = [...byId.values()];
-
+  let vagas = await searchRemoteJobs(profile.keywordsBusca);
   const total = vagas.length;
   vagas = vagas.slice(0, MAX_TO_SCORE);
   emit({
@@ -288,6 +286,7 @@ export async function huntRemotiveJobs(
         elegivel,
         url: v.url,
         empresa: v.company,
+        fonte: v.source,
       } satisfies HuntedJob;
     },
   );
