@@ -24,15 +24,21 @@ export interface FreelancerProject {
   jobs?: { name: string }[];
 }
 
-/** Busca projetos ativos por palavras-chave. (canal 🟢) */
+/**
+ * Busca projetos ativos por palavras-chave. (canal 🟢)
+ * `limit` evita puxar as 100 vagas padrão da API por busca — pontuar tudo
+ * com IA é caro/lento, e só interessam as mais recentes/compatíveis.
+ */
 export async function searchActiveProjects(
   token: string,
   query: string,
+  limit = 20,
 ): Promise<FreelancerProject[]> {
   const url = new URL(`${BASE_URL}/projects/0.1/projects/active/`);
   url.searchParams.set("query", query);
   url.searchParams.set("job_details", "true");
   url.searchParams.set("full_description", "true");
+  url.searchParams.set("limit", String(limit));
 
   const res = await fetch(url, { headers: authHeaders(token) });
   if (!res.ok) {
@@ -69,6 +75,89 @@ export async function placeBid(
   }
   const data = await res.json();
   return data?.result;
+}
+
+export interface FreelancerSelf {
+  id: number;
+  username: string;
+  tagline: string | null;
+  profileDescription: string | null;
+  hourlyRate: number | null;
+  jobs: { id: number; name: string }[];
+}
+
+/** Lê o perfil do próprio usuário (headline, bio, skills). */
+export async function getSelfProfile(token: string): Promise<FreelancerSelf> {
+  const url = new URL(`${BASE_URL}/users/0.1/self/`);
+  url.searchParams.set("profile_description", "true");
+  url.searchParams.set("jobs", "true");
+  const res = await fetch(url, { headers: authHeaders(token) });
+  if (!res.ok) {
+    throw new Error(`getSelfProfile falhou: ${res.status} ${await res.text()}`);
+  }
+  const r = (await res.json())?.result ?? {};
+  return {
+    id: r.id,
+    username: r.username,
+    tagline: r.tagline ?? null,
+    profileDescription: r.profile_description ?? null,
+    hourlyRate: r.hourly_rate ?? null,
+    jobs: (r.jobs ?? []).map((j: { id: number; name: string }) => ({
+      id: j.id,
+      name: j.name,
+    })),
+  };
+}
+
+/** Resolve nomes de skills em IDs de "job" do Freelancer (descarta o que não existe). */
+export async function resolveJobIds(
+  token: string,
+  names: string[],
+): Promise<{ id: number; name: string }[]> {
+  if (!names.length) return [];
+  const url = new URL(`${BASE_URL}/projects/0.1/jobs/`);
+  for (const n of names) url.searchParams.append("job_names[]", n);
+  const res = await fetch(url, { headers: authHeaders(token) });
+  if (!res.ok) return [];
+  const r = (await res.json())?.result ?? [];
+  return r.map((j: { id: number; name: string }) => ({
+    id: j.id,
+    name: j.name,
+  }));
+}
+
+/** Form-encoded helper para os endpoints de jobs (POST/DELETE). */
+function formHeaders(token: string) {
+  return {
+    "Freelancer-OAuth-V1": token,
+    "Content-Type": "application/x-www-form-urlencoded",
+  };
+}
+
+/** Adiciona skills (jobs) ao perfil do usuário. */
+export async function addJobs(token: string, ids: number[]): Promise<void> {
+  if (!ids.length) return;
+  const res = await fetch(`${BASE_URL}/users/0.1/self/jobs/`, {
+    method: "POST",
+    headers: formHeaders(token),
+    body: ids.map((id) => `jobs[]=${id}`).join("&"),
+  });
+  if (!res.ok) {
+    throw new Error(`addJobs falhou: ${res.status} ${await res.text()}`);
+  }
+}
+
+/** Remove skills (jobs) do perfil do usuário. */
+export async function removeJobs(token: string, ids: number[]): Promise<void> {
+  if (!ids.length) return;
+  const res = await fetch(`${BASE_URL}/users/0.1/self/jobs/`, {
+    method: "DELETE",
+    headers: formHeaders(token),
+    body: ids.map((id) => `jobs[]=${id}`).join("&"),
+  });
+  if (!res.ok) {
+    throw new Error(`removeJobs falhou: ${res.status} ${await res.text()}`);
+  }
 }
 
 /**
