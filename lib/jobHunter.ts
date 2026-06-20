@@ -227,7 +227,7 @@ export async function huntRemotiveJobs(
   emit({
     phase: "search",
     message:
-      "Buscando vagas (LinkedIn, Remotive, RemoteOK, Arbeitnow, WeWorkRemotely)...",
+      "Buscando vagas (Workana, LinkedIn, Remotive, RemoteOK, Arbeitnow, WeWorkRemotely)...",
   });
 
   let vagas = await searchRemoteJobs(profile.keywordsBusca);
@@ -277,7 +277,7 @@ export async function huntRemotiveJobs(
           externalId: String(v.id),
           titulo: v.title,
           descricao: v.description,
-          budget: null,
+          budget: v.budget ?? null,
           skills: "[]",
           score: scored.score,
           statusVaga: elegivel ? "elegivel" : "descartada",
@@ -286,7 +286,7 @@ export async function huntRemotiveJobs(
       return {
         externalId: String(v.id),
         titulo: v.title,
-        budget: null,
+        budget: v.budget ?? null,
         score: scored.score,
         motivo: scored.motivo,
         elegivel,

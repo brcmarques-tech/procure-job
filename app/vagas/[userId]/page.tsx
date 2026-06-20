@@ -858,9 +858,9 @@ export default function VagasPage() {
           Vagas remotas (busca automática)
         </h2>
         <p className="text-slate-500">
-          Busca automática de vagas públicas (LinkedIn, Remotive, RemoteOK,
-          Arbeitnow, WeWorkRemotely). A IA pontua e escreve a proposta; você
-          aplica no link da vaga.
+          Busca automática de vagas públicas (Workana, LinkedIn, Remotive,
+          RemoteOK, Arbeitnow, WeWorkRemotely). A IA pontua e escreve a
+          proposta; você aplica no link da vaga.
         </p>
 
         <button
@@ -920,6 +920,11 @@ export default function VagasPage() {
                         )}
                       </p>
                       <p className="text-sm text-slate-500">{job.motivo}</p>
+                      {job.budget && (
+                        <p className="mt-1 text-xs text-slate-400">
+                          Orçamento: {job.budget}
+                        </p>
+                      )}
                       {job.url && (
                         <a
                           href={job.url}

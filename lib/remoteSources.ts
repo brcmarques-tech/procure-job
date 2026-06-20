@@ -13,6 +13,7 @@ export interface RemoteJob {
   company: string;
   description: string;
   url: string;
+  budget?: string | null; // faixa do cliente (Workana traz; outras não)
 }
 
 const UA = "procure-job/1.0 (+job search)";
@@ -222,20 +223,77 @@ async function fromLinkedIn(query: string): Promise<RemoteJob[]> {
   }
 }
 
+/**
+ * Workana — endpoint JSON interno da busca de projetos (sem login). Devolve
+ * projetos freelancer reais em PT, com budget, skills, país e nº de propostas;
+ * o usuário se candidata no próprio site (copiloto). Volume baixo; falha
+ * graciosa se a Workana limitar (volta vazio sem quebrar as outras fontes).
+ */
+async function fromWorkana(query: string): Promise<RemoteJob[]> {
+  try {
+    const url = new URL("https://www.workana.com/jobs");
+    url.searchParams.set("language", "pt");
+    url.searchParams.set("query", query);
+    url.searchParams.set("page", "1");
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": LI_UA,
+        "Accept-Language": "pt-BR,pt;q=0.9",
+        "X-Requested-With": "XMLHttpRequest", // destrava a resposta JSON
+      },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const items = (data?.results?.results ?? []) as Array<
+      Record<string, unknown>
+    >;
+    return items
+      .filter((it) => it && it.slug && it.title)
+      .map((it) => {
+        const skillsArr = Array.isArray(it.skills)
+          ? (it.skills as Array<Record<string, unknown>>)
+          : [];
+        const skills = skillsArr
+          .map((s) => String(s.anchorText ?? ""))
+          .filter(Boolean);
+        const country = pick(String(it.country ?? ""), /title="([^"]+)"/);
+        const bids = stripHtml(String(it.totalBids ?? "")); // "Propostas: 6"
+        const desc = stripHtml(
+          String(it.shortDescription || it.description || ""),
+        );
+        return {
+          source: "Workana",
+          id: `wkn-${String(it.slug)}`,
+          title: stripHtml(String(it.title)),
+          company: String(it.authorName ?? ""),
+          description: [desc, skills.join(", "), bids, country]
+            .filter(Boolean)
+            .join(" · "),
+          url: `https://www.workana.com/job/${String(it.slug)}`,
+          budget: it.budget ? String(it.budget) : null,
+        } satisfies RemoteJob;
+      });
+  } catch {
+    return [];
+  }
+}
+
 /** Busca agregada nas fontes abertas. Devolve vagas com link, sem duplicatas. */
 export async function searchRemoteJobs(
   keywords: string[],
 ): Promise<RemoteJob[]> {
   const query = keywords.slice(0, 2).join(" ") || keywords[0] || "developer";
-  const [rmt, rok, arb, wwr, li] = await Promise.all([
+  const [rmt, rok, arb, wwr, li, wkn] = await Promise.all([
     fromRemotive(query),
     fromRemoteOK(),
     fromArbeitnow(),
     fromWWR(),
     fromLinkedIn(query),
+    fromWorkana(query),
   ]);
 
   const merged = [
+    ...wkn, // Workana já veio filtrado pela busca (query server-side)
     ...li, // LinkedIn já veio filtrado pela busca (keywords server-side)
     ...rmt.slice(0, 15), // Remotive já veio filtrado pela busca
     ...rok.filter((j) => matchesKeywords(j, keywords)).slice(0, 12),
