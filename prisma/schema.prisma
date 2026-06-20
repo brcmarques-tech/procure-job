@@ -1,13 +1,14 @@
-// Schema do banco — Procure.job (MVP)
-// SQLite no MVP. Arrays/objetos são guardados como String JSON (limitação do SQLite).
-// Trocar provider para "postgresql" depois é só mudar aqui + DATABASE_URL.
+// Schema do banco — Procure.job
+// Postgres (local e produção usam o MESMO banco na nuvem, então o portfólio
+// gerado localmente já fica no ar). Arrays/objetos seguem guardados como
+// String JSON — toda a lógica de JSON.parse() nas libs continua igual.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
