@@ -70,6 +70,9 @@ export default function VagasPage() {
   const [huntedJobs, setHuntedJobs] = useState<HuntedJobUI[]>([]);
   const [huntLog, setHuntLog] = useState<string[]>([]);
   const [huntElapsed, setHuntElapsed] = useState(0);
+  // Restritas (Preferred-only, NDA...) ficam ocultas por padrão — a conta
+  // gratuita não consegue dar lance nelas; o toggle revela quando quiser.
+  const [showRestritas, setShowRestritas] = useState(false);
 
   // Vagas remotas (Remotive — busca automática)
   const [rmLoading, setRmLoading] = useState(false);
@@ -473,6 +476,11 @@ export default function VagasPage() {
     }
   }
 
+  // Separa vagas que dá pra aplicar das restritas (conta gratuita não bida).
+  const aplicaveis = huntedJobs.filter((j) => !j.restrita);
+  const restritas = huntedJobs.filter((j) => j.restrita);
+  const visibleJobs = showRestritas ? [...aplicaveis, ...restritas] : aplicaveis;
+
   if (loadingProfile) {
     return (
       <main className="mx-auto max-w-3xl px-6 py-12 text-slate-500">
@@ -636,8 +644,33 @@ export default function VagasPage() {
         )}
 
         {huntedJobs.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+            <span className="text-slate-600">
+              {huntedJobs.length} vagas —{" "}
+              <strong className="text-green-700">
+                {aplicaveis.length} que você pode aplicar
+              </strong>
+              {restritas.length > 0 && (
+                <>
+                  {" "}
+                  · <span className="text-amber-700">{restritas.length} restritas 🔒</span>
+                </>
+              )}
+            </span>
+            {restritas.length > 0 && (
+              <button
+                onClick={() => setShowRestritas((v) => !v)}
+                className="border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-slate-400"
+              >
+                {showRestritas ? "Ocultar restritas" : "Mostrar restritas"}
+              </button>
+            )}
+          </div>
+        )}
+
+        {visibleJobs.length > 0 && (
           <ul className="space-y-3">
-            {huntedJobs.map((job) => {
+            {visibleJobs.map((job) => {
               const app = preparedApps[job.externalId];
               return (
                 <li
