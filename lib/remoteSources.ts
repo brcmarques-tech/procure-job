@@ -16,6 +16,18 @@ export interface RemoteJob {
   budget?: string | null; // faixa do cliente (Workana traz; outras não)
 }
 
+/** Fontes disponíveis (id usado na seleção + rótulo exibido na tela). */
+export const REMOTE_SOURCES = [
+  { id: "workana", label: "Workana" },
+  { id: "linkedin", label: "LinkedIn" },
+  { id: "remotive", label: "Remotive" },
+  { id: "remoteok", label: "RemoteOK" },
+  { id: "arbeitnow", label: "Arbeitnow" },
+  { id: "wwr", label: "WeWorkRemotely" },
+] as const;
+
+export type RemoteSourceId = (typeof REMOTE_SOURCES)[number]["id"];
+
 const UA = "procure-job/1.0 (+job search)";
 
 function stripHtml(s: string): string {
@@ -278,18 +290,32 @@ async function fromWorkana(query: string): Promise<RemoteJob[]> {
   }
 }
 
-/** Busca agregada nas fontes abertas. Devolve vagas com link, sem duplicatas. */
+/**
+ * Busca agregada nas fontes abertas. Devolve vagas com link, sem duplicatas.
+ * `sources` limita a quais quadros consultar (ids de REMOTE_SOURCES); vazio
+ * ou ausente = todas.
+ */
 export async function searchRemoteJobs(
   keywords: string[],
+  sources?: string[],
 ): Promise<RemoteJob[]> {
-  const query = keywords.slice(0, 2).join(" ") || keywords[0] || "developer";
+  // Keywords individuais — juntar tudo numa frase só (ex.: "Full Stack
+  // Developer NestJS") é específico demais e zera a busca na Workana/LinkedIn.
+  const kws = keywords.map((k) => k.trim()).filter(Boolean);
+  const queries = kws.length ? kws.slice(0, 2) : ["developer"];
+  const query = queries[0];
+  const want = (id: string) => !sources || !sources.length || sources.includes(id);
+  const none: RemoteJob[] = [];
   const [rmt, rok, arb, wwr, li, wkn] = await Promise.all([
-    fromRemotive(query),
-    fromRemoteOK(),
-    fromArbeitnow(),
-    fromWWR(),
-    fromLinkedIn(query),
-    fromWorkana(query),
+    want("remotive") ? fromRemotive(query) : none,
+    want("remoteok") ? fromRemoteOK() : none,
+    want("arbeitnow") ? fromArbeitnow() : none,
+    want("wwr") ? fromWWR() : none,
+    want("linkedin") ? fromLinkedIn(query) : none,
+    // Workana: uma busca por keyword e junta (dedup acontece no final).
+    want("workana")
+      ? Promise.all(queries.map((q) => fromWorkana(q))).then((r) => r.flat())
+      : none,
   ]);
 
   const merged = [

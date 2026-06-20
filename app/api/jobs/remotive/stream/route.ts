@@ -6,7 +6,10 @@ import { huntRemotiveJobs } from "@/lib/jobHunter";
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
-const schema = z.object({ userId: z.string().min(1) });
+const schema = z.object({
+  userId: z.string().min(1),
+  sources: z.array(z.string()).optional(),
+});
 
 /** Caça de vagas remotas (Remotive) com progresso ao vivo via SSE. */
 export async function POST(req: NextRequest) {
@@ -14,7 +17,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return Response.json({ error: "Dados inválidos." }, { status: 400 });
   }
-  const { userId } = parsed.data;
+  const { userId, sources } = parsed.data;
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
@@ -36,8 +39,10 @@ export async function POST(req: NextRequest) {
       );
 
       try {
-        const result = await huntRemotiveJobs(userId, (p) =>
-          send({ type: "status", ...p }),
+        const result = await huntRemotiveJobs(
+          userId,
+          (p) => send({ type: "status", ...p }),
+          sources,
         );
         send({ type: "result", jobs: result.jobs });
       } catch (e) {

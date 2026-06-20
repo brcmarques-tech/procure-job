@@ -7,7 +7,7 @@ import {
 } from "./freelancer";
 import { scoreJobsBatch } from "./jobs";
 import { getValidToken } from "./freelancerAuth";
-import { searchRemoteJobs } from "./remoteSources";
+import { searchRemoteJobs, REMOTE_SOURCES } from "./remoteSources";
 import type { ProfileDraft } from "./profile";
 
 /** Score mínimo para uma vaga ser considerada elegível para candidatura. */
@@ -207,6 +207,7 @@ export async function huntJobs(
 export async function huntRemotiveJobs(
   userId: string,
   onEvent?: (e: HuntProgress) => void,
+  sources?: string[],
 ): Promise<{ jobs: HuntedJob[] }> {
   const emit = (e: HuntProgress) => onEvent?.(e);
 
@@ -224,13 +225,17 @@ export async function huntRemotiveJobs(
     keywordsBusca: JSON.parse(user.profile.keywordsBusca),
   };
 
+  const escolhidas =
+    sources && sources.length ? sources : REMOTE_SOURCES.map((s) => s.id);
+  const labels = REMOTE_SOURCES.filter((s) => escolhidas.includes(s.id))
+    .map((s) => s.label)
+    .join(", ");
   emit({
     phase: "search",
-    message:
-      "Buscando vagas (Workana, LinkedIn, Remotive, RemoteOK, Arbeitnow, WeWorkRemotely)...",
+    message: `Buscando vagas (${labels})...`,
   });
 
-  let vagas = await searchRemoteJobs(profile.keywordsBusca);
+  let vagas = await searchRemoteJobs(profile.keywordsBusca, sources);
   const total = vagas.length;
   vagas = vagas.slice(0, MAX_TO_SCORE);
   emit({

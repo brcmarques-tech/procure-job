@@ -51,6 +51,16 @@ const STATUS_LABEL: Record<string, string> = {
   respondida: "Respondida",
 };
 
+/** Fontes da busca remota (precisa bater com REMOTE_SOURCES no back). */
+const RM_SOURCES = [
+  { id: "workana", label: "Workana" },
+  { id: "linkedin", label: "LinkedIn" },
+  { id: "remotive", label: "Remotive" },
+  { id: "remoteok", label: "RemoteOK" },
+  { id: "arbeitnow", label: "Arbeitnow" },
+  { id: "wwr", label: "WeWorkRemotely" },
+];
+
 export default function VagasPage() {
   const router = useRouter();
   const params = useParams<{ userId: string }>();
@@ -80,6 +90,9 @@ export default function VagasPage() {
   const [rmJobs, setRmJobs] = useState<HuntedJobUI[]>([]);
   const [rmLog, setRmLog] = useState<string[]>([]);
   const [rmElapsed, setRmElapsed] = useState(0);
+  const [rmSources, setRmSources] = useState<string[]>(
+    RM_SOURCES.map((s) => s.id),
+  );
   const [rmPrepId, setRmPrepId] = useState<string | null>(null);
   const [rmPrepared, setRmPrepared] = useState<Record<string, PreparedAppUI>>(
     {},
@@ -348,7 +361,7 @@ export default function VagasPage() {
       const res = await fetch("/api/jobs/remotive/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({ userId, sources: rmSources }),
       });
       if (!res.ok || !res.body) {
         const data = await res.json().catch(() => null);
@@ -863,12 +876,64 @@ export default function VagasPage() {
           proposta; você aplica no link da vaga.
         </p>
 
+        <div className="border border-slate-200 bg-slate-50 p-4">
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">
+            Onde buscar
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {RM_SOURCES.map((s) => {
+              const on = rmSources.includes(s.id);
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() =>
+                    setRmSources((prev) =>
+                      prev.includes(s.id)
+                        ? prev.filter((x) => x !== s.id)
+                        : [...prev, s.id],
+                    )
+                  }
+                  className={`border px-3 py-1.5 text-sm transition ${
+                    on
+                      ? "border-[#3398DB] bg-[#3398DB] text-white"
+                      : "border-slate-300 text-slate-500 hover:border-slate-400"
+                  }`}
+                >
+                  {on ? "✓ " : ""}
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-2 flex gap-3 text-xs text-slate-400">
+            <button
+              type="button"
+              onClick={() => setRmSources(RM_SOURCES.map((s) => s.id))}
+              className="underline hover:text-slate-600"
+            >
+              Selecionar todas
+            </button>
+            <button
+              type="button"
+              onClick={() => setRmSources([])}
+              className="underline hover:text-slate-600"
+            >
+              Limpar
+            </button>
+          </div>
+        </div>
+
         <button
           onClick={runRemotiveHunt}
-          disabled={rmLoading}
+          disabled={rmLoading || rmSources.length === 0}
           className="rounded-lg bg-[#3398DB] px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-[#2b82c2] disabled:opacity-50"
         >
-          {rmLoading ? "Buscando vagas remotas..." : "Buscar vagas remotas"}
+          {rmLoading
+            ? "Buscando vagas remotas..."
+            : rmSources.length === 0
+              ? "Escolha ao menos uma fonte"
+              : `Buscar em ${rmSources.length} fonte${rmSources.length > 1 ? "s" : ""}`}
         </button>
 
         {(rmLoading || rmLog.length > 0) && (
