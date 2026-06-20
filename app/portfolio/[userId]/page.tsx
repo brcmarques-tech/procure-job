@@ -9,6 +9,10 @@ import ProfileSummary, {
   type ProfileResult,
 } from "@/app/components/ProfileSummary";
 
+// Base PÚBLICA (Render) para o link do portfólio — nunca localhost.
+const PORTFOLIO_BASE =
+  process.env.NEXT_PUBLIC_BASE_URL ?? "https://procure-job.onrender.com";
+
 export default function PortfolioPage() {
   const router = useRouter();
   const params = useParams<{ userId: string }>();
@@ -324,12 +328,12 @@ export default function PortfolioPage() {
           <div className="space-y-3">
             {pfSlug && (
               <a
-                href={`/p/${pfSlug}`}
+                href={`${PORTFOLIO_BASE}/p/${pfSlug}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-block font-medium text-[#3398DB] underline"
               >
-                Abrir portfólio em nova aba → /p/{pfSlug}
+                Abrir portfólio em nova aba → {PORTFOLIO_BASE}/p/{pfSlug}
               </a>
             )}
             <iframe

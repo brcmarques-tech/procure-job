@@ -43,6 +43,11 @@ interface TrackerItemUI {
   portfolioVagaSlug: string | null;
 }
 
+// Base PÚBLICA (Render) para os links de portfólio — nunca usar localhost,
+// mesmo rodando local. Configurável via NEXT_PUBLIC_BASE_URL no build.
+const PORTFOLIO_BASE =
+  process.env.NEXT_PUBLIC_BASE_URL ?? "https://procure-job.onrender.com";
+
 const STATUS_LABEL: Record<string, string> = {
   rascunho: "Rascunho",
   aguardando_envio: "Aguardando envio",
@@ -878,7 +883,7 @@ export default function VagasPage() {
                           </button>
                           {pfVagaSlug[job.externalId] && (
                             <a
-                              href={`/p/${pfVagaSlug[job.externalId]}`}
+                              href={`${PORTFOLIO_BASE}/p/${pfVagaSlug[job.externalId]}`}
                               target="_blank"
                               rel="noreferrer"
                               className="text-sm underline hover:text-black"
@@ -1180,7 +1185,7 @@ export default function VagasPage() {
                           </button>
                           {pfVagaSlug[job.externalId] && (
                             <a
-                              href={`/p/${pfVagaSlug[job.externalId]}`}
+                              href={`${PORTFOLIO_BASE}/p/${pfVagaSlug[job.externalId]}`}
                               target="_blank"
                               rel="noreferrer"
                               className="text-sm underline hover:text-black"
@@ -1398,7 +1403,7 @@ export default function VagasPage() {
                   <div className="mt-2 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-2 text-xs">
                     <span className="text-[#3398DB]">🎯 Portfólio da vaga</span>
                     <a
-                      href={`/p/${item.portfolioVagaSlug}`}
+                      href={`${PORTFOLIO_BASE}/p/${item.portfolioVagaSlug}`}
                       target="_blank"
                       rel="noreferrer"
                       className="underline hover:text-black"
