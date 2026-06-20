@@ -73,11 +73,24 @@ export async function generateJSON<T>(opts: {
   model: ModelKey;
   maxTokens?: number;
 }): Promise<T> {
-  const text = await generateText({
-    system: opts.system,
-    user: opts.user,
-    model: MODELS[opts.model],
-    maxTokens: opts.maxTokens ?? 2000,
-  });
-  return extractJsonText<T>(text);
+  const run = (extra: string) =>
+    generateText({
+      system: opts.system + extra,
+      user: opts.user,
+      model: MODELS[opts.model],
+      maxTokens: opts.maxTokens ?? 2000,
+    });
+
+  const text = await run("");
+  try {
+    return extractJsonText<T>(text);
+  } catch {
+    // Às vezes o modelo responde em prosa (ex.: "não consigo avaliar...").
+    // Reforça a instrução e tenta uma vez antes de desistir.
+    const retry = await run(
+      "\n\nIMPORTANTE: responda SOMENTE com o objeto JSON pedido, " +
+        "sem nenhum texto antes ou depois e sem se recusar.",
+    );
+    return extractJsonText<T>(retry);
+  }
 }

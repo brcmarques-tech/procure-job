@@ -28,7 +28,7 @@ export async function scoreJobsBatch(
   const lista = jobs
     .map((j, i) => {
       const skills = (j.jobs ?? []).map((x) => x.name).join(", ");
-      const desc = (j.description ?? "").replace(/\s+/g, " ").slice(0, 280);
+      const desc = (j.description ?? "").replace(/\s+/g, " ").slice(0, 600);
       return `#${i} | ${j.title}\nSkills exigidas: ${skills || "—"}\n${desc}`;
     })
     .join("\n\n");
@@ -40,11 +40,15 @@ export async function scoreJobsBatch(
     maxTokens: 4000,
     system:
       "Você avalia o quanto CADA vaga combina com o perfil de um freelancer. " +
-      "Considere área, skills e experiência. Seja criterioso: nota alta só " +
-      "quando há real compatibilidade técnica. " +
+      "Considere área, skills e experiência. Nota alta só quando há real " +
+      "compatibilidade técnica. " +
+      "NUNCA se recuse a avaliar e NUNCA peça mais informações: mesmo que uma " +
+      "vaga tenha pouca descrição, dê a nota com base no título e no que " +
+      "houver — se faltar contexto, atribua nota mediana/baixa e diga isso no " +
+      "motivo. Toda vaga DEVE receber uma nota. " +
       'Responda APENAS com JSON {"scores":[{"i":number,"score":number 0-100,"motivo":string}]} ' +
       "cobrindo TODAS as vagas, referenciando cada uma pelo índice #i. " +
-      "motivo = 1 frase curta em português.",
+      "Não escreva NENHUM texto fora do JSON. motivo = 1 frase curta em português.",
     user:
       `Perfil do freelancer:\n${JSON.stringify(
         { area: profile.area, skills: profile.skills, resumoBio: profile.resumoBio },
