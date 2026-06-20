@@ -9,9 +9,10 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params;
-  const portfolio = await prisma.portfolio.findUnique({
-    where: { publicSlug: slug },
-  });
+  // Serve tanto o portfólio principal quanto as versões focadas em vaga.
+  const portfolio =
+    (await prisma.portfolio.findUnique({ where: { publicSlug: slug } })) ??
+    (await prisma.portfolioVaga.findUnique({ where: { publicSlug: slug } }));
 
   if (!portfolio) {
     return new Response("Portfólio não encontrado.", {

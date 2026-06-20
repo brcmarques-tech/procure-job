@@ -33,12 +33,14 @@ interface PreparedAppUI {
 
 interface TrackerItemUI {
   id: string;
+  jobId: string;
   titulo: string;
   canal: string;
   status: string;
   modoEnvio: string;
   valorSugerido: string | null;
   prazoSugerido: string | null;
+  portfolioVagaSlug: string | null;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -112,6 +114,13 @@ export default function VagasPage() {
     prazoSugerido: string;
     pontosFortes: string[];
   } | null>(null);
+
+  // Portfólio focado na vaga (temporário) — gerar no fluxo da proposta.
+  const [pfVagaLoadingId, setPfVagaLoadingId] = useState<string | null>(null);
+  const [pfVagaSlug, setPfVagaSlug] = useState<Record<string, string>>({});
+  const [pfVagaError, setPfVagaError] = useState<string | null>(null);
+  // Exclusão da versão de vaga, pelo Acompanhamento (por jobId).
+  const [pfVagaDelId, setPfVagaDelId] = useState<string | null>(null);
 
   // Fluxo copiloto
   const [prepLoadingId, setPrepLoadingId] = useState<string | null>(null);
@@ -213,6 +222,46 @@ export default function VagasPage() {
       setSyncMsg((err as Error).message);
     } finally {
       setTrkDelId(null);
+    }
+  }
+
+  // Gera a versão temporária do portfólio focada nesta vaga.
+  async function gerarPortfolioVaga(externalId: string, tipo: string) {
+    setPfVagaLoadingId(externalId);
+    setPfVagaError(null);
+    try {
+      const res = await fetch("/api/portfolio/vaga", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, externalId, tipo }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao gerar.");
+      setPfVagaSlug((prev) => ({ ...prev, [externalId]: data.slug }));
+      await loadTracker();
+    } catch (err) {
+      setPfVagaError((err as Error).message);
+    } finally {
+      setPfVagaLoadingId(null);
+    }
+  }
+
+  // Exclui a versão de portfólio de uma vaga (pelo Acompanhamento).
+  async function excluirPortfolioVaga(jobId: string) {
+    setPfVagaDelId(jobId);
+    try {
+      const res = await fetch("/api/portfolio/vaga/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, jobId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Erro ao excluir.");
+      await loadTracker();
+    } catch (err) {
+      setSyncMsg((err as Error).message);
+    } finally {
+      setPfVagaDelId(null);
     }
   }
 
@@ -784,6 +833,43 @@ export default function VagasPage() {
                         {app.prazoSugerido}
                       </p>
 
+                      <div className="border-t border-slate-200 pt-3">
+                        <p className="mb-1 text-xs text-slate-500">
+                          🎯 Portfólio sob medida — versão temporária do seu
+                          portfólio com foco nesta vaga (some no Acompanhamento).
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            onClick={() =>
+                              gerarPortfolioVaga(job.externalId, "freelancer")
+                            }
+                            disabled={pfVagaLoadingId === job.externalId}
+                            className="border border-[#3398DB] px-3 py-1.5 text-sm font-medium text-[#3398DB] transition hover:bg-[#3398DB] hover:text-white disabled:opacity-50"
+                          >
+                            {pfVagaLoadingId === job.externalId
+                              ? "Gerando portfólio..."
+                              : pfVagaSlug[job.externalId]
+                                ? "Regenerar portfólio da vaga"
+                                : "Gerar portfólio pra esta vaga"}
+                          </button>
+                          {pfVagaSlug[job.externalId] && (
+                            <a
+                              href={`/p/${pfVagaSlug[job.externalId]}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-sm underline hover:text-black"
+                            >
+                              Ver portfólio da vaga ↗
+                            </a>
+                          )}
+                        </div>
+                        {pfVagaError && pfVagaLoadingId === null && (
+                          <p className="mt-1 text-xs text-red-600">
+                            {pfVagaError}
+                          </p>
+                        )}
+                      </div>
+
                       {app.status !== "enviada" ? (
                         <>
                           <div className="flex flex-wrap items-end gap-3">
@@ -1035,6 +1121,39 @@ export default function VagasPage() {
                       <p className="text-xs text-slate-500">
                         Valor: {app.valorSugerido} · Prazo: {app.prazoSugerido}
                       </p>
+
+                      <div className="border-t border-slate-200 pt-3">
+                        <p className="mb-1 text-xs text-slate-500">
+                          🎯 Portfólio sob medida — versão temporária com foco
+                          nesta vaga (some no Acompanhamento).
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            onClick={() =>
+                              gerarPortfolioVaga(job.externalId, "remotive")
+                            }
+                            disabled={pfVagaLoadingId === job.externalId}
+                            className="border border-[#3398DB] px-3 py-1.5 text-sm font-medium text-[#3398DB] transition hover:bg-[#3398DB] hover:text-white disabled:opacity-50"
+                          >
+                            {pfVagaLoadingId === job.externalId
+                              ? "Gerando portfólio..."
+                              : pfVagaSlug[job.externalId]
+                                ? "Regenerar portfólio da vaga"
+                                : "Gerar portfólio pra esta vaga"}
+                          </button>
+                          {pfVagaSlug[job.externalId] && (
+                            <a
+                              href={`/p/${pfVagaSlug[job.externalId]}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-sm underline hover:text-black"
+                            >
+                              Ver portfólio da vaga ↗
+                            </a>
+                          )}
+                        </div>
+                      </div>
+
                       <div className="flex flex-wrap gap-2">
                         <button
                           onClick={() =>
@@ -1235,6 +1354,27 @@ export default function VagasPage() {
                     {STATUS_LABEL[item.status] ?? item.status}
                   </span>
                 </div>
+
+                {item.portfolioVagaSlug && (
+                  <div className="mt-2 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-2 text-xs">
+                    <span className="text-[#3398DB]">🎯 Portfólio da vaga</span>
+                    <a
+                      href={`/p/${item.portfolioVagaSlug}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline hover:text-black"
+                    >
+                      Ver ↗
+                    </a>
+                    <button
+                      onClick={() => excluirPortfolioVaga(item.jobId)}
+                      disabled={pfVagaDelId === item.jobId}
+                      className="text-red-600 underline hover:text-red-700 disabled:opacity-50"
+                    >
+                      {pfVagaDelId === item.jobId ? "Excluindo..." : "Excluir"}
+                    </button>
+                  </div>
+                )}
 
                 {item.status === "aguardando_envio" ? (
                   <div className="mt-3 space-y-2">

@@ -3,6 +3,7 @@ import { notifyUser } from "./notify";
 
 export interface TrackerItem {
   id: string;
+  jobId: string;
   titulo: string;
   canal: string;
   status: string;
@@ -11,6 +12,7 @@ export interface TrackerItem {
   prazoSugerido: string | null;
   enviadaEm: string | null;
   respostaRecebidaEm: string | null;
+  portfolioVagaSlug: string | null; // versão do portfólio focada nesta vaga
 }
 
 /**
@@ -27,8 +29,16 @@ export async function listApplications(userId: string): Promise<{
     orderBy: { createdAt: "desc" },
   });
 
+  // Portfólios focados em vaga (para mostrar "ver/excluir" no acompanhamento).
+  const pvs = await prisma.portfolioVaga.findMany({
+    where: { userId },
+    select: { jobId: true, publicSlug: true },
+  });
+  const slugByJob = new Map(pvs.map((p) => [p.jobId, p.publicSlug]));
+
   const items: TrackerItem[] = apps.map((a) => ({
     id: a.id,
+    jobId: a.jobId,
     titulo: a.job.titulo,
     canal: a.job.channel.tipo,
     status: a.status,
@@ -37,6 +47,7 @@ export async function listApplications(userId: string): Promise<{
     prazoSugerido: a.prazoSugerido,
     enviadaEm: a.enviadaEm?.toISOString() ?? null,
     respostaRecebidaEm: a.respostaRecebidaEm?.toISOString() ?? null,
+    portfolioVagaSlug: slugByJob.get(a.jobId) ?? null,
   }));
 
   const funnel = {

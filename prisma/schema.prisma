@@ -20,9 +20,10 @@ model User {
   faixaPreco String?
   createdAt  DateTime @default(now())
 
-  profile   Profile?
-  portfolio Portfolio?
-  channels  Channel[]
+  profile        Profile?
+  portfolio      Portfolio?
+  channels       Channel[]
+  portfoliosVaga PortfolioVaga[]
 }
 
 model Profile {
@@ -47,6 +48,23 @@ model Portfolio {
   status     String   @default("draft") // draft | publicado
   images     String   @default("[]") // JSON: {role, url, prompt}[] — imagens geradas (Magnific)
   updatedAt  DateTime @updatedAt
+}
+
+// Versão temporária do portfólio, focada numa vaga específica.
+// O usuário gera no fluxo da proposta e vê/exclui no Acompanhamento.
+model PortfolioVaga {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId      String // Job.id de origem (liga ao acompanhamento)
+  focoVaga   String // título da vaga (exibição)
+  html       String   @default("")
+  css        String   @default("")
+  publicSlug String   @unique
+  images     String   @default("[]") // reusa as imagens do portfólio principal
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, jobId])
 }
 
 model Channel {
