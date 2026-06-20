@@ -61,11 +61,14 @@ export async function prepareApplication(
     ? `${base}/p/${user.portfolio.publicSlug}`
     : "(portfólio ainda não gerado)";
 
+  const jobSkills: string[] = job.skills ? JSON.parse(job.skills) : [];
   const proposal = await writeProposal({
     profile,
     portfolioUrl,
     jobTitle: job.titulo,
     jobDescription: job.descricao,
+    budget: job.budget,
+    jobSkills,
   });
 
   const modoEnvio = channel.modo === "auto" ? "auto" : "copiloto";
@@ -97,6 +100,7 @@ export async function prepareApplication(
     proposta: proposal.proposta,
     valorSugerido: proposal.valorSugerido,
     prazoSugerido: proposal.prazoSugerido,
+    pontosFortes: proposal.pontosFortes,
     status: application.status,
   };
 }
