@@ -4,6 +4,22 @@ import { getValidToken } from "./freelancerAuth";
 import { placeBid, getSelfProfile, getBids } from "./freelancer";
 import type { ProfileDraft } from "./profile";
 
+/**
+ * Base PÚBLICA do app (deploy no Render) — usada nos links de portfólio que
+ * vão dentro das propostas/lances. NUNCA mandar localhost para o cliente.
+ * Configurável via env (PUBLIC_BASE_URL) caso a URL do Render mude.
+ */
+const PUBLIC_BASE =
+  process.env.PUBLIC_BASE_URL ?? "https://procure-job.onrender.com";
+
+/** Troca qualquer URL localhost/127.0.0.1 pela base pública. */
+function publicizeUrls(text: string): string {
+  return text.replace(
+    /https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?/g,
+    PUBLIC_BASE,
+  );
+}
+
 /** Extrai o valor numérico de uma string como "R$ 1.500" -> 1500. */
 function parseValor(s?: string | null): number {
   if (!s) return 0;
@@ -56,9 +72,8 @@ export async function prepareApplication(
     keywordsBusca: JSON.parse(user.profile.keywordsBusca),
   };
 
-  const base = process.env.APP_BASE_URL ?? "http://localhost:3000";
   const portfolioUrl = user.portfolio
-    ? `${base}/p/${user.portfolio.publicSlug}`
+    ? `${PUBLIC_BASE}/p/${user.portfolio.publicSlug}`
     : "(portfólio ainda não gerado)";
 
   const jobSkills: string[] = job.skills ? JSON.parse(job.skills) : [];
@@ -148,9 +163,8 @@ export async function prepareManualApplication(
     },
   });
 
-  const base = process.env.APP_BASE_URL ?? "http://localhost:3000";
   const portfolioUrl = user.portfolio
-    ? `${base}/p/${user.portfolio.publicSlug}`
+    ? `${PUBLIC_BASE}/p/${user.portfolio.publicSlug}`
     : "(portfólio ainda não gerado)";
 
   const proposal = await writeProposal({
@@ -199,13 +213,19 @@ export async function prepareManualApplication(
  */
 export async function sendApplication(
   applicationId: string,
-  opts?: { amount?: number; period?: number },
+  opts?: { amount?: number; period?: number; propostaTexto?: string },
 ) {
   const application = await prisma.application.findUnique({
     where: { id: applicationId },
     include: { job: { include: { channel: true } } },
   });
   if (!application) throw new Error("Candidatura não encontrada.");
+
+  // Usa o texto editado pelo usuário (se veio) e garante que nenhum link de
+  // portfólio aponte para localhost — sempre a base pública (Render).
+  const propostaFinal = publicizeUrls(
+    (opts?.propostaTexto?.trim() || application.propostaTexto) ?? "",
+  );
 
   const job = application.job;
   const userId = job.channel.userId;
@@ -231,7 +251,7 @@ export async function sendApplication(
       bidderId: self.id,
       amount,
       period: period > 0 ? period : 7,
-      description: application.propostaTexto,
+      description: propostaFinal,
     });
     bidId = bid?.id ?? null;
   }
@@ -241,6 +261,7 @@ export async function sendApplication(
     data: {
       status: "enviada",
       enviadaEm: new Date(),
+      propostaTexto: propostaFinal,
       ...(bidId ? { bidExternalId: String(bidId) } : {}),
     },
   });

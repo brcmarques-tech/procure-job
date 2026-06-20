@@ -129,6 +129,8 @@ export default function VagasPage() {
   const [preparedApps, setPreparedApps] = useState<Record<string, PreparedAppUI>>(
     {},
   );
+  // Texto da proposta editável pelo usuário antes de enviar (por externalId).
+  const [editProposta, setEditProposta] = useState<Record<string, string>>({});
   // Valor (número) e prazo (dias) editáveis por vaga, antes de enviar o lance.
   const [bidInputs, setBidInputs] = useState<
     Record<string, { amount: string; period: string }>
@@ -459,6 +461,7 @@ export default function VagasPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro desconhecido.");
       setRmPrepared((prev) => ({ ...prev, [externalId]: data }));
+      setEditProposta((prev) => ({ ...prev, [externalId]: data.proposta }));
       await loadTracker();
     } catch (err) {
       setRmError((err as Error).message);
@@ -479,6 +482,7 @@ export default function VagasPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro desconhecido.");
       setPreparedApps((prev) => ({ ...prev, [externalId]: data }));
+      setEditProposta((prev) => ({ ...prev, [externalId]: data.proposta }));
       // Pré-preenche valor/prazo a partir da sugestão da IA (editável).
       setBidInputs((prev) => ({
         ...prev,
@@ -517,6 +521,7 @@ export default function VagasPage() {
           applicationId: app.applicationId,
           amount,
           period: period > 0 ? period : 7,
+          propostaTexto: editProposta[externalId] ?? app.proposta,
         }),
       });
       const data = await res.json();
@@ -748,6 +753,14 @@ export default function VagasPage() {
                           Orçamento: {job.budget}
                         </p>
                       )}
+                      <a
+                        href={`https://www.freelancer.com/projects/${job.externalId}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1 inline-block text-sm text-[#3398DB] underline hover:text-[#2b82c2]"
+                      >
+                        Ver no Freelancer ↗
+                      </a>
                       {job.restrita && (
                         <p className="mt-2 inline-block bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700">
                           🔒 Restrita — {job.restricaoMotivo}
@@ -825,9 +838,20 @@ export default function VagasPage() {
                         </div>
                       )}
 
-                      <p className="whitespace-pre-wrap text-sm">
-                        {app.proposta}
-                      </p>
+                      <label className="block text-xs text-slate-500">
+                        Proposta (edite à vontade antes de enviar)
+                        <textarea
+                          value={editProposta[job.externalId] ?? app.proposta}
+                          onChange={(e) =>
+                            setEditProposta((prev) => ({
+                              ...prev,
+                              [job.externalId]: e.target.value,
+                            }))
+                          }
+                          rows={9}
+                          className="mt-1 block w-full border border-slate-300 bg-white px-3 py-2 text-sm leading-relaxed text-slate-800 outline-none focus:border-[#3398DB]"
+                        />
+                      </label>
                       <p className="text-xs text-slate-400">
                         Sugestão da IA — Valor: {app.valorSugerido} · Prazo:{" "}
                         {app.prazoSugerido}
@@ -918,7 +942,9 @@ export default function VagasPage() {
                           <div className="flex flex-wrap gap-2">
                             <button
                               onClick={() =>
-                                navigator.clipboard.writeText(app.proposta)
+                                navigator.clipboard.writeText(
+                                editProposta[job.externalId] ?? app.proposta,
+                              )
                               }
                               className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
                             >
@@ -1115,9 +1141,20 @@ export default function VagasPage() {
 
                   {app && (
                     <div className="mt-3 space-y-3 rounded-lg bg-slate-50 p-4">
-                      <p className="whitespace-pre-wrap text-sm">
-                        {app.proposta}
-                      </p>
+                      <label className="block text-xs text-slate-500">
+                        Proposta (edite à vontade antes de enviar)
+                        <textarea
+                          value={editProposta[job.externalId] ?? app.proposta}
+                          onChange={(e) =>
+                            setEditProposta((prev) => ({
+                              ...prev,
+                              [job.externalId]: e.target.value,
+                            }))
+                          }
+                          rows={9}
+                          className="mt-1 block w-full border border-slate-300 bg-white px-3 py-2 text-sm leading-relaxed text-slate-800 outline-none focus:border-[#3398DB]"
+                        />
+                      </label>
                       <p className="text-xs text-slate-500">
                         Valor: {app.valorSugerido} · Prazo: {app.prazoSugerido}
                       </p>
@@ -1157,7 +1194,9 @@ export default function VagasPage() {
                       <div className="flex flex-wrap gap-2">
                         <button
                           onClick={() =>
-                            navigator.clipboard.writeText(app.proposta)
+                            navigator.clipboard.writeText(
+                                editProposta[job.externalId] ?? app.proposta,
+                              )
                           }
                           className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
                         >
