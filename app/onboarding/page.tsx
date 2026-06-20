@@ -47,6 +47,7 @@ export default function OnboardingPage() {
   });
   const [busyId, setBusyId] = useState<string | null>(null);
   const [perfisMsg, setPerfisMsg] = useState<string | null>(null);
+  const [perfisOpen, setPerfisOpen] = useState(false); // fechado por padrão
 
   const loadPerfis = useCallback(async () => {
     setPerfisLoading(true);
@@ -271,150 +272,138 @@ export default function OnboardingPage() {
         <Stepper current="perfil" />
       </div>
 
-      {/* Central de perfis já criados */}
+      {/* Meus perfis — painel compacto, à direita, fechado por padrão */}
       {(perfisLoading || perfis.length > 0) && (
-        <section className="mx-auto max-w-2xl px-6 pt-10">
-          <div className="flex items-end justify-between">
-            <div>
-              <p className="eyebrow">Meus perfis</p>
-              <h2 className="mt-1 text-2xl font-bold text-[#151D26]">
-                Perfis já criados
-              </h2>
-            </div>
-            {perfis.length > 0 && (
-              <span className="text-sm text-slate-400">
-                {perfis.length} perfil(is)
+        <div className="mx-auto max-w-5xl px-6 pt-6">
+          <div className="ml-auto w-full max-w-xs">
+            <button
+              type="button"
+              onClick={() => setPerfisOpen((o) => !o)}
+              className="flex w-full items-center justify-between border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-[#151D26] shadow-sm transition hover:border-slate-300"
+            >
+              <span>
+                Meus perfis
+                {perfis.length > 0 && (
+                  <span className="ml-1 text-slate-400">({perfis.length})</span>
+                )}
               </span>
-            )}
-          </div>
+              <span className="text-slate-400">{perfisOpen ? "▴" : "▾"}</span>
+            </button>
 
-          {perfisMsg && (
-            <p className="mt-3 text-sm text-slate-600">{perfisMsg}</p>
-          )}
-
-          {perfisLoading ? (
-            <p className="mt-4 text-sm text-slate-400">Carregando perfis...</p>
-          ) : (
-            <ul className="mt-4 space-y-3">
-              {perfis.map((p) => (
-                <li
-                  key={p.id}
-                  className="border border-slate-200 bg-white p-4"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-[#151D26]">{p.nome}</p>
-                      <p className="text-sm text-slate-500">
+            {perfisOpen && (
+              <div className="mt-2 max-h-[70vh] space-y-2 overflow-auto border border-slate-200 bg-white p-3 shadow-sm">
+                {perfisMsg && (
+                  <p className="text-xs text-slate-600">{perfisMsg}</p>
+                )}
+                {perfisLoading ? (
+                  <p className="text-xs text-slate-400">Carregando...</p>
+                ) : perfis.length === 0 ? (
+                  <p className="text-xs text-slate-400">Nenhum perfil ainda.</p>
+                ) : (
+                  perfis.map((p) => (
+                    <div key={p.id} className="border border-slate-200 p-3">
+                      <p className="text-sm font-semibold text-[#151D26]">
+                        {p.nome}
+                      </p>
+                      <p className="text-xs text-slate-500">
                         {p.area ?? "(sem área)"}
                       </p>
-                      <p className="mt-1 text-xs text-slate-400">
+                      <p className="mt-0.5 truncate text-xs text-slate-400">
                         {p.email}
                         {p.telefone ? ` · ${p.telefone}` : ""}
                       </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => router.push(`/portfolio/${p.id}`)}
-                        className="border border-[#3398DB] px-3 py-1.5 text-sm font-medium text-[#3398DB] transition hover:bg-[#3398DB] hover:text-white"
-                      >
-                        Portfólio
-                      </button>
-                      <button
-                        onClick={() => router.push(`/vagas/${p.id}`)}
-                        className="border border-slate-300 px-3 py-1.5 text-sm text-slate-600 transition hover:border-slate-400"
-                      >
-                        Vagas
-                      </button>
-                      <button
-                        onClick={() =>
-                          editId === p.id ? setEditId(null) : startEdit(p)
-                        }
-                        className="border border-slate-300 px-3 py-1.5 text-sm text-slate-600 transition hover:border-slate-400"
-                      >
-                        {editId === p.id ? "Fechar" : "⚙ Configurar"}
-                      </button>
-                      <button
-                        onClick={() => removePerfil(p)}
-                        disabled={busyId === p.id}
-                        className="border border-slate-300 px-3 py-1.5 text-sm text-red-600 transition hover:border-red-400 disabled:opacity-50"
-                      >
-                        {busyId === p.id ? "..." : "Excluir"}
-                      </button>
-                    </div>
-                  </div>
-
-                  {editId === p.id && (
-                    <div className="mt-4 grid grid-cols-1 gap-3 border-t border-slate-100 pt-4 sm:grid-cols-2">
-                      <label className="text-xs text-slate-500">
-                        Nome
-                        <input
-                          value={editForm.nome}
-                          onChange={(e) =>
-                            setEditForm((f) => ({ ...f, nome: e.target.value }))
-                          }
-                          className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-[#3398DB]"
-                        />
-                      </label>
-                      <label className="text-xs text-slate-500">
-                        Email
-                        <input
-                          type="email"
-                          value={editForm.email}
-                          onChange={(e) =>
-                            setEditForm((f) => ({ ...f, email: e.target.value }))
-                          }
-                          className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-[#3398DB]"
-                        />
-                      </label>
-                      <label className="text-xs text-slate-500">
-                        Telefone / WhatsApp
-                        <input
-                          value={editForm.telefone}
-                          onChange={(e) =>
-                            setEditForm((f) => ({
-                              ...f,
-                              telefone: e.target.value,
-                            }))
-                          }
-                          placeholder="+55 53 99999-9999"
-                          className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-[#3398DB]"
-                        />
-                      </label>
-                      <label className="text-xs text-slate-500">
-                        LinkedIn (URL)
-                        <input
-                          value={editForm.linkedin}
-                          onChange={(e) =>
-                            setEditForm((f) => ({
-                              ...f,
-                              linkedin: e.target.value,
-                            }))
-                          }
-                          placeholder="https://linkedin.com/in/..."
-                          className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-[#3398DB]"
-                        />
-                      </label>
-                      <div className="sm:col-span-2">
+                      <div className="mt-2 flex flex-wrap gap-1.5">
                         <button
-                          onClick={saveEdit}
-                          disabled={busyId === p.id}
-                          className="bg-[#3398DB] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b82c2] disabled:opacity-50"
+                          onClick={() => router.push(`/portfolio/${p.id}`)}
+                          className="border border-[#3398DB] px-2 py-1 text-xs font-medium text-[#3398DB] transition hover:bg-[#3398DB] hover:text-white"
                         >
-                          {busyId === p.id ? "Salvando..." : "Salvar contato"}
+                          Portfólio
                         </button>
-                        <span className="ml-3 text-xs text-slate-400">
-                          Esses dados viram os botões do portfólio.
-                        </span>
+                        <button
+                          onClick={() => router.push(`/vagas/${p.id}`)}
+                          className="border border-slate-300 px-2 py-1 text-xs text-slate-600 transition hover:border-slate-400"
+                        >
+                          Vagas
+                        </button>
+                        <button
+                          title="Configurar contato"
+                          onClick={() =>
+                            editId === p.id ? setEditId(null) : startEdit(p)
+                          }
+                          className="border border-slate-300 px-2 py-1 text-xs text-slate-600 transition hover:border-slate-400"
+                        >
+                          {editId === p.id ? "Fechar" : "⚙"}
+                        </button>
+                        <button
+                          title="Excluir perfil"
+                          onClick={() => removePerfil(p)}
+                          disabled={busyId === p.id}
+                          className="border border-slate-300 px-2 py-1 text-xs text-red-600 transition hover:border-red-400 disabled:opacity-50"
+                        >
+                          {busyId === p.id ? "..." : "🗑"}
+                        </button>
                       </div>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
 
-          <p className="eyebrow mt-8">Criar novo</p>
-        </section>
+                      {editId === p.id && (
+                        <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
+                          <input
+                            value={editForm.nome}
+                            onChange={(e) =>
+                              setEditForm((f) => ({ ...f, nome: e.target.value }))
+                            }
+                            placeholder="Nome"
+                            className="block w-full rounded border border-slate-300 px-2 py-1 text-xs outline-none focus:border-[#3398DB]"
+                          />
+                          <input
+                            type="email"
+                            value={editForm.email}
+                            onChange={(e) =>
+                              setEditForm((f) => ({
+                                ...f,
+                                email: e.target.value,
+                              }))
+                            }
+                            placeholder="Email"
+                            className="block w-full rounded border border-slate-300 px-2 py-1 text-xs outline-none focus:border-[#3398DB]"
+                          />
+                          <input
+                            value={editForm.telefone}
+                            onChange={(e) =>
+                              setEditForm((f) => ({
+                                ...f,
+                                telefone: e.target.value,
+                              }))
+                            }
+                            placeholder="Telefone / WhatsApp"
+                            className="block w-full rounded border border-slate-300 px-2 py-1 text-xs outline-none focus:border-[#3398DB]"
+                          />
+                          <input
+                            value={editForm.linkedin}
+                            onChange={(e) =>
+                              setEditForm((f) => ({
+                                ...f,
+                                linkedin: e.target.value,
+                              }))
+                            }
+                            placeholder="LinkedIn (URL)"
+                            className="block w-full rounded border border-slate-300 px-2 py-1 text-xs outline-none focus:border-[#3398DB]"
+                          />
+                          <button
+                            onClick={saveEdit}
+                            disabled={busyId === p.id}
+                            className="w-full bg-[#3398DB] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#2b82c2] disabled:opacity-50"
+                          >
+                            {busyId === p.id ? "Salvando..." : "Salvar contato"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Hero claro com ilustração (estilo template) */}
