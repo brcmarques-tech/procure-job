@@ -1,5 +1,3 @@
-import { mkdir, writeFile, readFile } from "node:fs/promises";
-import path from "node:path";
 import { prisma } from "./db";
 import { generateJSON } from "./claude";
 import { generateWithReferences, type AspectRatio } from "./magnific";
@@ -10,7 +8,7 @@ export const IMAGE_ROLES: ImageRole[] = ["hero", "sobre", "trabalho"];
 
 export interface PortfolioImage {
   role: ImageRole;
-  url: string; // caminho público local + ?v=<versão> para cache-busting
+  url: string; // rota que serve a imagem do banco + ?v=<versão> (cache-busting)
   prompt: string;
 }
 
@@ -19,15 +17,6 @@ const ASPECT: Record<ImageRole, AspectRatio> = {
   sobre: "standard_3_2",
   trabalho: "widescreen_16_9",
 };
-
-function refsDir(userId: string) {
-  // Pasta PRIVADA (fora de /public, não servida na web) com as fotos de
-  // referência, para permitir regenerar uma imagem sem reenviar tudo.
-  return path.join(process.cwd(), "data", "refs", userId);
-}
-function outDir(userId: string) {
-  return path.join(process.cwd(), "public", "generated", userId);
-}
 
 function withIdentity(prompt: string): string {
   return (
@@ -75,29 +64,21 @@ async function planScenes(profile: ProfileDraft): Promise<ScenePlan[]> {
   });
 }
 
-async function downloadTo(url: string, destAbs: string): Promise<void> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Falha ao baixar imagem (${res.status}).`);
-  const buf = Buffer.from(await res.arrayBuffer());
-  await writeFile(destAbs, buf);
-}
-
 async function saveRefs(userId: string, refs: string[]): Promise<void> {
-  const dir = refsDir(userId);
-  await mkdir(dir, { recursive: true });
-  await writeFile(path.join(dir, "refs.json"), JSON.stringify(refs));
+  const data = JSON.stringify(refs);
+  await prisma.imageRefs.upsert({
+    where: { userId },
+    update: { refs: data },
+    create: { userId, refs: data },
+  });
 }
 
 async function loadRefs(userId: string): Promise<string[]> {
-  try {
-    const raw = await readFile(path.join(refsDir(userId), "refs.json"), "utf8");
-    return JSON.parse(raw);
-  } catch {
-    return [];
-  }
+  const r = await prisma.imageRefs.findUnique({ where: { userId } });
+  return r ? (JSON.parse(r.refs) as string[]) : [];
 }
 
-/** Gera uma cena, baixa o arquivo e devolve a entrada (URL com versão). */
+/** Gera uma cena, baixa os bytes e guarda no banco. Devolve a URL (com versão). */
 async function genOne(
   userId: string,
   role: ImageRole,
@@ -110,14 +91,22 @@ async function genOne(
     referencesDataUri: refs,
     aspectRatio: ASPECT[role],
   });
-  await mkdir(outDir(userId), { recursive: true });
-  await downloadTo(ephemeralUrl, path.join(outDir(userId), `${role}.jpg`));
-  return { role, url: `/generated/${userId}/${role}.jpg?v=${version}`, prompt };
+  const res = await fetch(ephemeralUrl);
+  if (!res.ok) throw new Error(`Falha ao baixar imagem (${res.status}).`);
+  const data = Buffer.from(await res.arrayBuffer());
+
+  await prisma.generatedImage.upsert({
+    where: { userId_role: { userId, role } },
+    update: { data, mime: "image/jpeg" },
+    create: { userId, role, data, mime: "image/jpeg" },
+  });
+  return { role, url: `/img/${userId}/${role}?v=${version}`, prompt };
 }
 
 /**
  * Persiste a lista de imagens e atualiza o HTML do portfólio existente para
- * apontar para a nova versão (cache-busting), sem precisar regenerar o site.
+ * apontar para a nova versão (cache-busting). Também MIGRA URLs antigas de
+ * arquivo (/generated/...) para a nova rota do banco (/img/...).
  */
 async function persist(
   userId: string,
@@ -140,10 +129,10 @@ async function persist(
     let html = existingHtml;
     for (const role of rolesToPatch) {
       const re = new RegExp(
-        `(/generated/${userId}/${role}\\.jpg)(\\?v=\\d+)?`,
+        `/(?:generated|img)/${userId}/${role}(?:\\.jpg)?(?:\\?v=\\d+)?`,
         "g",
       );
-      html = html.replace(re, `$1?v=${version}`);
+      html = html.replace(re, `/img/${userId}/${role}?v=${version}`);
     }
     data.html = html;
   }
@@ -173,7 +162,7 @@ async function loadUser(userId: string) {
 
 /**
  * Gera as 3 imagens a partir das fotos do usuário, salva as referências
- * (para regeneração individual depois) e persiste tudo.
+ * (para regeneração individual depois) e persiste tudo no banco.
  */
 export async function generatePortfolioImages(
   userId: string,

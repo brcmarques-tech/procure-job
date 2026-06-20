@@ -118,6 +118,27 @@ model Application {
   events Event[]
 }
 
+// Imagem gerada do portfólio, guardada NO BANCO (durável e servida online,
+// em vez de arquivo local que some no deploy do Render).
+model GeneratedImage {
+  id        String   @id @default(cuid())
+  userId    String
+  role      String // hero | sobre | trabalho
+  mime      String   @default("image/jpeg")
+  data      Bytes
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, role])
+}
+
+// Fotos de referência do usuário (data URIs base64), pra regenerar uma imagem
+// sem reenviar tudo. Também no banco (antes era arquivo em data/refs).
+model ImageRefs {
+  userId    String   @id
+  refs      String // JSON: string[] de data URIs
+  updatedAt DateTime @updatedAt
+}
+
 // Config singleton — guarda a URL do túnel pro Claude local (atualizada pelo
 // notebook quando liga o túnel; o app no Render lê daqui, sem precisar redeploy).
 model AppConfig {
