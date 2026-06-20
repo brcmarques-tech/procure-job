@@ -27,7 +27,8 @@ function extractJsonText<T>(text: string): T {
   return JSON.parse(match[0]) as T;
 }
 
-async function generateText(opts: {
+/** Geração de texto LOCAL: API key (se houver) ou assinatura do Claude Code. */
+export async function generateTextLocal(opts: {
   system: string;
   user: string;
   model: string;
@@ -64,6 +65,42 @@ async function generateText(opts: {
     if (typeof m.result === "string") out = m.result;
   }
   return out;
+}
+
+/**
+ * Geração de texto. Se AI_PROXY_URL estiver definido (caso do app no Render),
+ * encaminha pro Claude LOCAL do dono (notebook + túnel) — assim a IA online usa
+ * a assinatura, sem API key. Sem AI_PROXY_URL, gera localmente.
+ */
+async function generateText(opts: {
+  system: string;
+  user: string;
+  model: string;
+  maxTokens: number;
+}): Promise<string> {
+  const proxyUrl = process.env.AI_PROXY_URL?.trim();
+  if (proxyUrl) {
+    try {
+      const res = await fetch(proxyUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-ai-proxy-secret": process.env.AI_PROXY_SECRET ?? "",
+        },
+        body: JSON.stringify(opts),
+      });
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const data = await res.json();
+      return data.text ?? "";
+    } catch (e) {
+      throw new Error(
+        "Claude local indisponível — ligue o notebook e o túnel (ou configure a " +
+          "ANTHROPIC_API_KEY no Render). Detalhe: " +
+          (e as Error).message,
+      );
+    }
+  }
+  return generateTextLocal(opts);
 }
 
 /** Gera e devolve um objeto JSON validado a partir de um prompt. */

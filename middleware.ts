@@ -30,6 +30,6 @@ export function middleware(req: NextRequest) {
 export const config = {
   // Roda em tudo, EXCETO: portfólios públicos, login, e estáticos.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|p/|illustrations/|generated/|login|api/login).*)",
+    "/((?!_next/static|_next/image|favicon.ico|p/|illustrations/|generated/|login|api/login|api/ai-proxy).*)",
   ],
 };
