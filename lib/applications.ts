@@ -84,6 +84,8 @@ export async function prepareApplication(
     jobDescription: job.descricao,
     budget: job.budget,
     jobSkills,
+    // Freelancer rejeita proposta acima de 1500 caracteres.
+    maxChars: tipo === "freelancer" ? 1500 : 2500,
   });
 
   const modoEnvio = channel.modo === "auto" ? "auto" : "copiloto";
@@ -172,6 +174,7 @@ export async function prepareManualApplication(
     portfolioUrl,
     jobTitle: input.titulo,
     jobDescription: input.descricao,
+    maxChars: 2500,
   });
 
   const application = await prisma.application.upsert({
