@@ -268,18 +268,16 @@ export default function OnboardingPage() {
   // ---- Etapa inicial ----
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-5xl px-6 pt-8">
+      <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 pt-8">
         <Stepper current="perfil" />
-      </div>
 
-      {/* Meus perfis — painel compacto, à direita, fechado por padrão */}
-      {(perfisLoading || perfis.length > 0) && (
-        <div className="mx-auto max-w-5xl px-6 pt-6">
-          <div className="ml-auto w-full max-w-xs">
+        {/* Meus perfis — no mesmo nível do stepper, à direita; abre flutuando */}
+        {(perfisLoading || perfis.length > 0) && (
+          <div className="relative shrink-0">
             <button
               type="button"
               onClick={() => setPerfisOpen((o) => !o)}
-              className="flex w-full items-center justify-between border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-[#151D26] shadow-sm transition hover:border-slate-300"
+              className="flex items-center gap-3 border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-[#151D26] shadow-sm transition hover:border-slate-300"
             >
               <span>
                 Meus perfis
@@ -291,7 +289,7 @@ export default function OnboardingPage() {
             </button>
 
             {perfisOpen && (
-              <div className="mt-2 max-h-[70vh] space-y-2 overflow-auto border border-slate-200 bg-white p-3 shadow-sm">
+              <div className="absolute right-0 top-full z-30 mt-2 max-h-[70vh] w-72 space-y-2 overflow-auto border border-slate-200 bg-white p-3 shadow-lg">
                 {perfisMsg && (
                   <p className="text-xs text-slate-600">{perfisMsg}</p>
                 )}
@@ -403,8 +401,8 @@ export default function OnboardingPage() {
               </div>
             )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Hero claro com ilustração (estilo template) */}
       <header className="border-b border-[#EBEBEB] bg-gradient-to-bl from-[#fdece6] via-white to-white">
