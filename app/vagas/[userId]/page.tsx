@@ -858,9 +858,9 @@ export default function VagasPage() {
           Vagas remotas (busca automática)
         </h2>
         <p className="text-slate-500">
-          Busca automática em quadros de vagas remotas abertas (Remotive,
-          RemoteOK, Arbeitnow, WeWorkRemotely). A IA pontua e escreve a
-          proposta; você aplica no link da vaga.
+          Busca automática de vagas públicas (LinkedIn, Remotive, RemoteOK,
+          Arbeitnow, WeWorkRemotely). A IA pontua e escreve a proposta; você
+          aplica no link da vaga.
         </p>
 
         <button

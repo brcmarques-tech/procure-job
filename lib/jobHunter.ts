@@ -227,7 +227,7 @@ export async function huntRemotiveJobs(
   emit({
     phase: "search",
     message:
-      "Buscando em quadros de vagas remotas (Remotive, RemoteOK, Arbeitnow, WeWorkRemotely)...",
+      "Buscando vagas (LinkedIn, Remotive, RemoteOK, Arbeitnow, WeWorkRemotely)...",
   });
 
   let vagas = await searchRemoteJobs(profile.keywordsBusca);
