@@ -1,5 +1,9 @@
 import { prisma } from "./db";
-import { generatePortfolio, type PortfolioImageRef } from "./portfolio";
+import {
+  generatePortfolio,
+  buildContato,
+  type PortfolioImageRef,
+} from "./portfolio";
 import { slugify } from "./slug";
 import type { ProfileDraft } from "./profile";
 
@@ -56,7 +60,13 @@ export async function prepareJobPortfolio(
     `- Skills pedidas: ${jobSkills.join(", ") || "—"}\n` +
     `- Descrição: ${(job.descricao || "").replace(/\s+/g, " ").slice(0, 800)}`;
 
-  const out = await generatePortfolio(profile, foco, images);
+  const contato = buildContato({
+    nome: user.nome,
+    email: user.email,
+    telefone: user.telefone,
+    linkedin: user.linkedin,
+  });
+  const out = await generatePortfolio(profile, foco, images, contato);
 
   // Slug estável por vaga (regenerar mantém a mesma URL).
   const slug = `${slugify(user.nome)}-vaga-${job.id.slice(-6)}`;

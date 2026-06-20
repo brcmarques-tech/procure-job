@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { logError } from "@/lib/logError";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { generatePortfolio } from "@/lib/portfolio";
+import { generatePortfolio, buildContato } from "@/lib/portfolio";
 import { slugify } from "@/lib/slug";
 import type { ProfileDraft } from "@/lib/profile";
 
@@ -49,9 +49,16 @@ export async function POST(req: NextRequest) {
       }[])
     : [];
 
+  const contato = buildContato({
+    nome: user.nome,
+    email: user.email,
+    telefone: user.telefone,
+    linkedin: user.linkedin,
+  });
+
   let out;
   try {
-    out = await generatePortfolio(profile, instrucoes, images);
+    out = await generatePortfolio(profile, instrucoes, images, contato);
   } catch (e) {
     logError("api/portfolio", e);
     return Response.json(

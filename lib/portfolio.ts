@@ -11,6 +11,33 @@ export interface PortfolioImageRef {
   url: string;
 }
 
+export interface PortfolioContato {
+  whatsapp?: string | null;
+  email?: string | null;
+  linkedin?: string | null;
+}
+
+/** Monta as URLs de contato (WhatsApp/email/LinkedIn) a partir do usuário. */
+export function buildContato(p: {
+  nome?: string;
+  email?: string | null;
+  telefone?: string | null;
+  linkedin?: string | null;
+}): PortfolioContato {
+  const digits = (p.telefone || "").replace(/\D/g, "");
+  const primeiro = p.nome ? p.nome.trim().split(/\s+/)[0] : "";
+  const msg = encodeURIComponent(
+    `Oi${primeiro ? " " + primeiro : ""}, vi seu portfólio e queria conversar sobre um projeto.`,
+  );
+  return {
+    whatsapp: digits.length >= 10 ? `https://wa.me/${digits}?text=${msg}` : null,
+    email: p.email
+      ? `mailto:${p.email}?subject=${encodeURIComponent("Contato pelo portfólio")}`
+      : null,
+    linkedin: p.linkedin || null,
+  };
+}
+
 /**
  * Design system de referência (inspirado no template "Shop.co"):
  * clean, claro, tipografia display preta em caixa-alta, cantos bem
@@ -81,6 +108,7 @@ export async function generatePortfolio(
   profile: ProfileDraft,
   instrucoes?: string,
   images?: PortfolioImageRef[],
+  contato?: PortfolioContato,
 ): Promise<PortfolioOutput> {
   // Diz ao gerador, de forma explícita, quais seções têm dado real — para
   // ele OMITIR (não inventar nem deixar buraco) as que estão vazias.
@@ -104,6 +132,16 @@ export async function generatePortfolio(
       : `\nNÃO use tags <img> (não há imagens disponíveis); use blocos ` +
         `geométricos/iniciais quando precisar de elementos visuais.\n`;
 
+  const c = contato;
+  const temContato = Boolean(c && (c.whatsapp || c.email || c.linkedin));
+  const contatoBlock = temContato
+    ? `\nCONTATO REAL — use EXATAMENTE estas URLs nos botões/links de contato (NUNCA href="#"):\n` +
+      (c!.whatsapp ? `- WhatsApp (botão principal): ${c!.whatsapp}\n` : "") +
+      (c!.email ? `- Email: ${c!.email}\n` : "") +
+      (c!.linkedin ? `- LinkedIn: ${c!.linkedin}\n` : "") +
+      `Todos os CTAs de contato ("Falar comigo", "Entrar em contato", "Contato") DEVEM levar a essas URLs com target="_blank". Na seção de contato, agrupe os botões num container FLEX centralizado, com LARGURA IGUAL entre eles e espaçamento uniforme — nunca botões de tamanhos diferentes.\n`
+    : `\nSem contato configurado: NÃO crie botão de contato com href="#" (botão morto). Use um CTA textual simples, sem link quebrado.\n`;
+
   return generateJSON<PortfolioOutput>({
     model: "smart",
     maxTokens: 16000,
@@ -113,7 +151,7 @@ export async function generatePortfolio(
       "fornecido. Capriche no CSS (espaçamento, tipografia, hover). " +
       'Responda APENAS com JSON válido {"html": string, "css": string}.',
     user:
-      `${DESIGN_SYSTEM}\n${secoesBlock}\n${imgBlock}\n` +
+      `${DESIGN_SYSTEM}\n${secoesBlock}\n${imgBlock}\n${contatoBlock}\n` +
       `PERFIL DO FREELANCER:\n${JSON.stringify(profile, null, 2)}\n\n` +
       (instrucoes
         ? `AJUSTES PEDIDOS PELO USUÁRIO (têm prioridade): ${instrucoes}\n\n`
