@@ -118,6 +118,14 @@ model Application {
   events Event[]
 }
 
+// Config singleton — guarda a URL do túnel pro Claude local (atualizada pelo
+// notebook quando liga o túnel; o app no Render lê daqui, sem precisar redeploy).
+model AppConfig {
+  id         String   @id @default("singleton")
+  aiProxyUrl String?
+  updatedAt  DateTime @updatedAt
+}
+
 model Event {
   id            String      @id @default(cuid())
   applicationId String

@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { query } from "@anthropic-ai/claude-agent-sdk";
+import { getAiProxyUrl } from "./config";
 
 // Modelos centralizados — troque aqui se precisar.
 export const MODELS = {
@@ -78,7 +79,18 @@ async function generateText(opts: {
   model: string;
   maxTokens: number;
 }): Promise<string> {
-  const proxyUrl = process.env.AI_PROXY_URL?.trim();
+  let proxyUrl = process.env.AI_PROXY_URL?.trim() || undefined;
+  // Em produção (USE_AI_PROXY), a URL do túnel vem do banco (publicada pelo
+  // notebook ao ligar o túnel) — assim muda sem precisar redeploy.
+  if (!proxyUrl && process.env.USE_AI_PROXY) {
+    proxyUrl = (await getAiProxyUrl()) ?? undefined;
+    if (!proxyUrl) {
+      throw new Error(
+        "Claude local offline — ligue o notebook e rode o atalho " +
+          "'Procure.job IA online' pra a IA funcionar online.",
+      );
+    }
+  }
   if (proxyUrl) {
     try {
       const res = await fetch(proxyUrl, {
