@@ -93,7 +93,7 @@ model Channel {
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   tipo        String // freelancer | workana | upwork
-  credenciais String   @default("{}") // JSON com tokens — CRIPTOGRAFAR antes de produção
+  credenciais String   @default("{}") // JSON com tokens, CIFRADO (AES-256-GCM) via lib/credsCrypto + CREDS_KEY
   modo        String   @default("copiloto") // auto | copiloto
   createdAt   DateTime @default(now())
 

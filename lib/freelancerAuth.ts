@@ -1,4 +1,15 @@
 import { prisma } from "./db";
+import { encryptString, decryptString } from "./credsCrypto";
+
+/** Lê o JSON de credenciais (decifra se estiver cifrado; aceita legado em texto puro). */
+function parseCreds(raw?: string | null): StoredCreds {
+  if (!raw) return {};
+  try {
+    return JSON.parse(decryptString(raw));
+  } catch {
+    return {};
+  }
+}
 
 const OAUTH_BASE =
   process.env.FREELANCER_OAUTH_BASE ?? "https://accounts.freelancer.com";
@@ -104,18 +115,17 @@ export async function storeToken(
   const channel = await prisma.channel.findUnique({
     where: { userId_tipo: { userId, tipo: "freelancer" } },
   });
-  const prev: StoredCreds = channel?.credenciais
-    ? JSON.parse(channel.credenciais)
-    : {};
+  const prev: StoredCreds = parseCreds(channel?.credenciais);
   const creds = credsFromResponse(t, prev);
+  const enc = encryptString(JSON.stringify(creds));
   await prisma.channel.upsert({
     where: { userId_tipo: { userId, tipo: "freelancer" } },
-    update: { credenciais: JSON.stringify(creds), modo: "auto" },
+    update: { credenciais: enc, modo: "auto" },
     create: {
       userId,
       tipo: "freelancer",
       modo: "auto",
-      credenciais: JSON.stringify(creds),
+      credenciais: enc,
     },
   });
 }
@@ -130,9 +140,7 @@ export async function getValidToken(userId: string): Promise<string | null> {
   const channel = await prisma.channel.findUnique({
     where: { userId_tipo: { userId, tipo: "freelancer" } },
   });
-  const creds: StoredCreds = channel?.credenciais
-    ? JSON.parse(channel.credenciais)
-    : {};
+  const creds: StoredCreds = parseCreds(channel?.credenciais);
 
   if (creds.access_token) {
     const expiring =
