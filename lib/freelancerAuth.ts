@@ -121,9 +121,10 @@ export async function storeToken(
 }
 
 /**
- * Retorna um access token válido para o usuário:
- * 1) usa o token salvo no canal (renovando via refresh se estiver expirando);
- * 2) se não houver, cai no FREELANCER_OAUTH_TOKEN do .env (modo manual).
+ * Retorna um access token válido para o usuário — APENAS a conexão própria
+ * do perfil (cada perfil usa só a conta de Freelancer dele). Se o perfil não
+ * conectou, devolve null (a busca cai em modo demonstração). NÃO há fallback
+ * para um token global: isso misturaria contas entre perfis.
  */
 export async function getValidToken(userId: string): Promise<string | null> {
   const channel = await prisma.channel.findUnique({
@@ -148,8 +149,7 @@ export async function getValidToken(userId: string): Promise<string | null> {
     return creds.access_token;
   }
 
-  const envToken = process.env.FREELANCER_OAUTH_TOKEN?.trim();
-  return envToken || null;
+  return null;
 }
 
 export async function isConnected(userId: string): Promise<boolean> {
