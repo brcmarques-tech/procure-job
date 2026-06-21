@@ -40,7 +40,8 @@ export default function LoginPage() {
         onSubmit={entrar}
         className="w-full max-w-sm border border-slate-200 bg-white p-6 shadow-sm sm:p-8"
       >
-        <p className="eyebrow">Procure.job</p>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.svg" alt="Procure.job" className="h-8 w-auto" />
         <h1 className="mt-2 text-2xl font-bold text-[#151D26]">Acesso à ferramenta</h1>
         <p className="mt-1 text-sm text-slate-500">
           Entre com o nome e a senha da sua conta. Os portfólios são públicos; a

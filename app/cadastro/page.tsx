@@ -39,7 +39,8 @@ export default function CadastroPage() {
         onSubmit={criar}
         className="w-full max-w-sm border border-slate-200 bg-white p-6 shadow-sm sm:p-8"
       >
-        <p className="eyebrow">Procure.job</p>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.svg" alt="Procure.job" className="h-8 w-auto" />
         <h1 className="mt-2 text-2xl font-bold text-[#151D26]">Criar conta</h1>
         <p className="mt-1 text-sm text-slate-500">
           O cadastro é protegido por uma senha mestre. Cada conta vê apenas os

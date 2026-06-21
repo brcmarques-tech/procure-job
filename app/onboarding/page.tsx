@@ -281,7 +281,11 @@ export default function OnboardingPage() {
   // ---- Etapa inicial ----
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 pt-6 sm:px-6 sm:pt-8">
+      <div className="mx-auto max-w-5xl px-4 pt-6 sm:px-6">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.svg" alt="Procure.job" className="h-7 w-auto" />
+      </div>
+      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 pt-3 sm:px-6 sm:pt-4">
         <Stepper current="perfil" />
 
         <div className="flex items-center gap-2 sm:gap-3">

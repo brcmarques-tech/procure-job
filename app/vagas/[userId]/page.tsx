@@ -728,7 +728,11 @@ export default function VagasPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-5xl px-6 pt-8">
+      <div className="mx-auto max-w-5xl px-6 pt-6">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.svg" alt="Procure.job" className="h-7 w-auto" />
+      </div>
+      <div className="mx-auto max-w-5xl px-6 pt-3">
         <Stepper current="vagas" userId={userId} />
       </div>
 
