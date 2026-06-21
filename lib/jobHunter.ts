@@ -15,32 +15,12 @@ export const SCORE_THRESHOLD = 60;
 
 /** Teto de vagas pontuadas por busca — controla custo de IA e tempo. */
 const MAX_TO_SCORE = 40;
-/** Quantas pontuações de IA rodam ao mesmo tempo. */
-const SCORE_CONCURRENCY = 8;
-
-/** map com limite de concorrência (evita disparar N chamadas de IA de uma vez). */
-async function mapPool<T, R>(
-  items: T[],
-  concurrency: number,
-  fn: (item: T) => Promise<R>,
-): Promise<R[]> {
-  const out: R[] = new Array(items.length);
-  let next = 0;
-  async function worker() {
-    while (next < items.length) {
-      const i = next++;
-      out[i] = await fn(items[i]);
-    }
-  }
-  await Promise.all(
-    Array.from({ length: Math.min(concurrency, items.length) }, worker),
-  );
-  return out;
-}
 
 export interface HuntedJob {
   externalId: string;
   titulo: string;
+  descricao: string; // p/ salvar/preparar sem reconsultar a plataforma
+  skills: string[];
   budget: string | null;
   score: number;
   motivo: string;
@@ -118,12 +98,6 @@ export async function huntJobs(
     count: projects.length,
   });
 
-  const channel = await prisma.channel.upsert({
-    where: { userId_tipo: { userId, tipo: "freelancer" } },
-    update: {},
-    create: { userId, tipo: "freelancer", modo: "auto" },
-  });
-
   // Pontua TODAS as vagas com IA numa ÚNICA chamada (1 sessão, não N).
   emit({
     phase: "scoring",
@@ -146,53 +120,30 @@ export async function huntJobs(
   console.log(`[hunt] IA pontuou ${scores.length} vagas em ${segundos}s`);
   emit({
     phase: "scored",
-    message: `Claude avaliou ${scores.length} vagas em ${segundos}s. Salvando...`,
+    message: `Claude avaliou ${scores.length} vagas em ${segundos}s.`,
   });
 
-  // Persiste em paralelo (lotes) — agora só I/O de banco, sem IA por vaga.
-  const hunted = await mapPool(
-    projects.map((p, i) => ({ p, scored: scores[i] })),
-    SCORE_CONCURRENCY,
-    async ({ p, scored }) => {
+  // A busca NÃO persiste — só pontua e devolve. O Job só vai pro banco quando o
+  // usuário curte ou prepara candidatura (lib/applications.saveJob).
+  const hunted: HuntedJob[] = projects.map((p, i) => {
+    const scored = scores[i];
     const elegivel = scored.score >= SCORE_THRESHOLD;
     const restricaoMotivo = bidRestriction(p.upgrades);
     const budget = p.budget
       ? `${p.budget.minimum ?? "?"} - ${p.budget.maximum ?? "?"}`
       : null;
-
-    await prisma.job.upsert({
-      where: {
-        channelId_externalId: {
-          channelId: channel.id,
-          externalId: String(p.id),
-        },
-      },
-      update: {
-        score: scored.score,
-        statusVaga: elegivel ? "elegivel" : "descartada",
-      },
-      create: {
-        channelId: channel.id,
-        externalId: String(p.id),
-        titulo: p.title,
-        descricao: p.description,
-        budget,
-        skills: JSON.stringify((p.jobs ?? []).map((j) => j.name)),
-        score: scored.score,
-        statusVaga: elegivel ? "elegivel" : "descartada",
-      },
-    });
-
     return {
       externalId: String(p.id),
       titulo: p.title,
+      descricao: p.description,
+      skills: (p.jobs ?? []).map((j) => j.name),
       budget,
       score: scored.score,
       motivo: scored.motivo,
       elegivel,
       restrita: Boolean(restricaoMotivo),
       restricaoMotivo,
-    } satisfies HuntedJob;
+    };
   });
 
   hunted.sort((a, b) => b.score - a.score);
@@ -244,12 +195,6 @@ export async function huntRemotiveJobs(
     count: vagas.length,
   });
 
-  const channel = await prisma.channel.upsert({
-    where: { userId_tipo: { userId, tipo: "remotive" } },
-    update: {},
-    create: { userId, tipo: "remotive", modo: "copiloto" },
-  });
-
   emit({
     phase: "scoring",
     message: `Claude está avaliando ${vagas.length} vagas remotas contra o seu perfil...`,
@@ -259,48 +204,26 @@ export async function huntRemotiveJobs(
     profile,
     vagas.map((v) => ({ title: v.title, description: v.description })),
   );
-  emit({ phase: "scored", message: `Avaliação concluída. Salvando...` });
+  emit({ phase: "scored", message: `Avaliação concluída.` });
 
-  const hunted = await mapPool(
-    vagas.map((v, i) => ({ v, scored: scores[i] })),
-    SCORE_CONCURRENCY,
-    async ({ v, scored }) => {
-      const elegivel = scored.score >= SCORE_THRESHOLD;
-      await prisma.job.upsert({
-        where: {
-          channelId_externalId: {
-            channelId: channel.id,
-            externalId: String(v.id),
-          },
-        },
-        update: {
-          score: scored.score,
-          statusVaga: elegivel ? "elegivel" : "descartada",
-        },
-        create: {
-          channelId: channel.id,
-          externalId: String(v.id),
-          titulo: v.title,
-          descricao: v.description,
-          budget: v.budget ?? null,
-          skills: "[]",
-          score: scored.score,
-          statusVaga: elegivel ? "elegivel" : "descartada",
-        },
-      });
-      return {
-        externalId: String(v.id),
-        titulo: v.title,
-        budget: v.budget ?? null,
-        score: scored.score,
-        motivo: scored.motivo,
-        elegivel,
-        url: v.url,
-        empresa: v.company,
-        fonte: v.source,
-      } satisfies HuntedJob;
-    },
-  );
+  // Não persiste — só pontua e devolve (salva ao curtir/preparar).
+  const hunted: HuntedJob[] = vagas.map((v, i) => {
+    const scored = scores[i];
+    const elegivel = scored.score >= SCORE_THRESHOLD;
+    return {
+      externalId: String(v.id),
+      titulo: v.title,
+      descricao: v.description,
+      skills: [],
+      budget: v.budget ?? null,
+      score: scored.score,
+      motivo: scored.motivo,
+      elegivel,
+      url: v.url,
+      empresa: v.company,
+      fonte: v.source,
+    };
+  });
 
   hunted.sort((a, b) => b.score - a.score);
   return { jobs: hunted };

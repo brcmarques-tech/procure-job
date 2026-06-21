@@ -42,6 +42,7 @@ model User {
   portfolio      Portfolio?
   channels       Channel[]
   portfoliosVaga PortfolioVaga[]
+  jobs           Job[]
 
   // E-mail único POR conta (duas contas podem usar o mesmo e-mail).
   @@unique([accountId, email])
@@ -106,18 +107,23 @@ model Job {
   id         String   @id @default(cuid())
   channelId  String
   channel    Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  // Dono direto da vaga salva (escopo por usuário + limpeza). A busca não
+  // persiste mais nada; um Job só existe quando o usuário curtiu ou preparou.
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   externalId String // id da vaga na plataforma de origem
   titulo     String
   descricao  String
   budget     String?
   skills     String   @default("[]") // JSON: string[]
   score      Int      @default(0) // 0-100 compatibilidade com o perfil
-  statusVaga String   @default("nova") // nova | elegivel | descartada
+  statusVaga String   @default("nova") // nova | salva | elegivel | descartada
   createdAt  DateTime @default(now())
 
   application Application?
 
   @@unique([channelId, externalId])
+  @@index([userId])
 }
 
 model Application {

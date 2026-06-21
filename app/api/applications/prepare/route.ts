@@ -4,10 +4,20 @@ import { z } from "zod";
 import { prepareApplication } from "@/lib/applications";
 import { denyIfNotOwner } from "@/lib/authGuard";
 
+const jobSchema = z.object({
+  externalId: z.string().min(1),
+  titulo: z.string().min(1),
+  descricao: z.string().default(""),
+  budget: z.string().nullish(),
+  skills: z.array(z.string()).optional(),
+  score: z.number().optional(),
+  elegivel: z.boolean().optional(),
+});
+
 const schema = z.object({
   userId: z.string().min(1),
-  externalId: z.string().min(1),
   tipo: z.string().optional(),
+  job: jobSchema,
 });
 
 /** M5 — prepara a candidatura (gera proposta, deixa "aguardando_envio"). */
@@ -21,7 +31,7 @@ export async function POST(req: NextRequest) {
   try {
     const result = await prepareApplication(
       parsed.data.userId,
-      parsed.data.externalId,
+      { ...parsed.data.job, budget: parsed.data.job.budget ?? null },
       parsed.data.tipo,
     );
     return Response.json(result);

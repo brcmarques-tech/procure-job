@@ -9,6 +9,8 @@ import Footer from "@/app/components/Footer";
 interface HuntedJobUI {
   externalId: string;
   titulo: string;
+  descricao: string;
+  skills: string[];
   budget: string | null;
   score: number;
   motivo: string;
@@ -18,6 +20,26 @@ interface HuntedJobUI {
   fonte?: string | null;
   restrita?: boolean;
   restricaoMotivo?: string | null;
+}
+
+/** Item da área "Minhas vagas" (vinda de /api/jobs/list). */
+interface MinhaVagaUI {
+  id: string; // Job.id
+  externalId: string;
+  titulo: string;
+  descricao: string;
+  budget: string | null;
+  skills: string[];
+  score: number;
+  fonte: string; // freelancer | remotive | ...
+  portfolioVagaSlug: string | null;
+  application: {
+    id: string;
+    status: string;
+    modoEnvio: string;
+    valorSugerido: string | null;
+    prazoSugerido: string | null;
+  } | null;
 }
 
 interface PreparedAppUI {
@@ -67,6 +89,31 @@ const RM_SOURCES = [
   { id: "arbeitnow", label: "Arbeitnow" },
   { id: "wwr", label: "WeWorkRemotely" },
 ];
+
+/** Rótulos das fontes (para o filtro de "Minhas vagas"). */
+const FONTE_LABEL: Record<string, string> = {
+  freelancer: "Freelancer",
+  remotive: "Remotive",
+  linkedin: "LinkedIn",
+  workana: "Workana",
+  remoteok: "RemoteOK",
+  arbeitnow: "Arbeitnow",
+  wwr: "WeWorkRemotely",
+  exemplo: "Exemplo",
+};
+
+/** Monta o payload da vaga p/ /api/jobs/save e /api/applications/prepare. */
+function jobPayload(j: HuntedJobUI) {
+  return {
+    externalId: j.externalId,
+    titulo: j.titulo,
+    descricao: j.descricao ?? "",
+    budget: j.budget,
+    skills: j.skills ?? [],
+    score: j.score,
+    elegivel: j.elegivel,
+  };
+}
 
 export default function VagasPage() {
   const router = useRouter();
@@ -141,10 +188,24 @@ export default function VagasPage() {
     Record<string, { amount: string; period: string }>
   >({});
 
-  // Tracker
-  const [trackerLoading, setTrackerLoading] = useState(false);
+  // Salvar/curtir vaga nos resultados da busca
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [savedIds, setSavedIds] = useState<string[]>([]);
+
+  // Área "Minhas vagas" (curtidas + acompanhadas) + filtros
+  const [minhasVagas, setMinhasVagas] = useState<MinhaVagaUI[]>([]);
+  const [mvLoading, setMvLoading] = useState(false);
+  const [mvDelId, setMvDelId] = useState<string | null>(null);
+  const [mvPrepId, setMvPrepId] = useState<string | null>(null);
+  const [fSituacao, setFSituacao] = useState<
+    "todas" | "curtida" | "acompanhando" | "enviada"
+  >("todas");
+  const [fFonte, setFFonte] = useState<string>("todas");
+  const [fScoreMin, setFScoreMin] = useState(0);
+  const [fBusca, setFBusca] = useState("");
+
+  // Tracker (funil no topo + inputs de lance reaproveitados em "Minhas vagas")
   const [funnel, setFunnel] = useState<Record<string, number> | null>(null);
-  const [trackerItems, setTrackerItems] = useState<TrackerItemUI[]>([]);
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
   // Envio/descarte direto pelo acompanhamento (por applicationId).
@@ -155,25 +216,19 @@ export default function VagasPage() {
   >({});
 
   const loadTracker = useCallback(async () => {
-    setTrackerLoading(true);
-    try {
-      const res = await fetch(`/api/applications/list?userId=${userId}`);
-      const data = await res.json();
-      if (res.ok) {
-        setFunnel(data.funnel);
-        setTrackerItems(data.items);
-        // Pré-preenche valor/prazo dos itens (a partir da sugestão da IA).
-        const inputs: Record<string, { amount: string; period: string }> = {};
-        for (const it of data.items as TrackerItemUI[]) {
-          inputs[it.id] = {
-            amount: String(it.valorSugerido ?? "").replace(/[^\d]/g, ""),
-            period: (String(it.prazoSugerido ?? "").match(/\d+/) ?? ["7"])[0],
-          };
-        }
-        setTrkInputs(inputs);
+    const res = await fetch(`/api/applications/list?userId=${userId}`);
+    const data = await res.json();
+    if (res.ok) {
+      setFunnel(data.funnel);
+      // Pré-preenche valor/prazo dos itens (a partir da sugestão da IA).
+      const inputs: Record<string, { amount: string; period: string }> = {};
+      for (const it of data.items as TrackerItemUI[]) {
+        inputs[it.id] = {
+          amount: String(it.valorSugerido ?? "").replace(/[^\d]/g, ""),
+          period: (String(it.prazoSugerido ?? "").match(/\d+/) ?? ["7"])[0],
+        };
       }
-    } finally {
-      setTrackerLoading(false);
+      setTrkInputs(inputs);
     }
   }, [userId]);
 
@@ -205,7 +260,7 @@ export default function VagasPage() {
           ? `✓ Lance enviado no Freelancer${data.bidId ? ` (#${data.bidId})` : ""}.`
           : "✓ Registrada como enviada.",
       );
-      await loadTracker();
+      await Promise.all([loadTracker(), loadMinhasVagas()]);
     } catch (err) {
       setSyncMsg((err as Error).message);
     } finally {
@@ -224,7 +279,7 @@ export default function VagasPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao descartar.");
-      await loadTracker();
+      await Promise.all([loadTracker(), loadMinhasVagas()]);
     } catch (err) {
       setSyncMsg((err as Error).message);
     } finally {
@@ -245,7 +300,7 @@ export default function VagasPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao gerar.");
       setPfVagaSlug((prev) => ({ ...prev, [externalId]: data.slug }));
-      await loadTracker();
+      await Promise.all([loadTracker(), loadMinhasVagas()]);
     } catch (err) {
       setPfVagaError((err as Error).message);
     } finally {
@@ -264,7 +319,7 @@ export default function VagasPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? "Erro ao excluir.");
-      await loadTracker();
+      await Promise.all([loadTracker(), loadMinhasVagas()]);
     } catch (err) {
       setSyncMsg((err as Error).message);
     } finally {
@@ -283,7 +338,7 @@ export default function VagasPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro ao sincronizar.");
-      await loadTracker();
+      await Promise.all([loadTracker(), loadMinhasVagas()]);
       setSyncMsg(
         data.synced === 0
           ? "Nenhum lance enviado para checar ainda."
@@ -298,6 +353,78 @@ export default function VagasPage() {
     }
   }
 
+  const loadMinhasVagas = useCallback(async () => {
+    setMvLoading(true);
+    try {
+      const res = await fetch(`/api/jobs/list?userId=${userId}`);
+      const data = await res.json();
+      if (res.ok) setMinhasVagas(data.jobs);
+    } finally {
+      setMvLoading(false);
+    }
+  }, [userId]);
+
+  // Curtir/salvar uma vaga dos resultados da busca (persiste com userId).
+  async function curtir(job: HuntedJobUI, tipo: string) {
+    setSavingId(job.externalId);
+    try {
+      const res = await fetch("/api/jobs/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, tipo, job: jobPayload(job) }),
+      });
+      if (res.ok) {
+        setSavedIds((s) =>
+          s.includes(job.externalId) ? s : [...s, job.externalId],
+        );
+        await loadMinhasVagas();
+      }
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  // Exclui a vaga do banco (some das Minhas vagas; cascata remove candidatura).
+  async function excluirJob(jobId: string) {
+    setMvDelId(jobId);
+    try {
+      const res = await fetch("/api/jobs/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, jobId }),
+      });
+      if (res.ok) await Promise.all([loadMinhasVagas(), loadTracker()]);
+    } finally {
+      setMvDelId(null);
+    }
+  }
+
+  // Prepara candidatura a partir de uma vaga já salva (Minhas vagas).
+  async function prepararDaLista(v: MinhaVagaUI) {
+    setMvPrepId(v.id);
+    try {
+      const res = await fetch("/api/applications/prepare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          tipo: v.fonte,
+          job: {
+            externalId: v.externalId,
+            titulo: v.titulo,
+            descricao: v.descricao,
+            budget: v.budget,
+            skills: v.skills,
+            score: v.score,
+          },
+        }),
+      });
+      if (res.ok) await Promise.all([loadMinhasVagas(), loadTracker()]);
+    } finally {
+      setMvPrepId(null);
+    }
+  }
+
   useEffect(() => {
     let cancel = false;
     (async () => {
@@ -305,7 +432,8 @@ export default function VagasPage() {
         const res = await fetch(`/api/profile?userId=${userId}`);
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "Erro ao carregar.");
-        if (!cancel) await loadTracker();
+        if (!cancel) await Promise.all([loadTracker(), loadMinhasVagas()]);
+        if (!cancel) await loadMinhasVagas();
         const st = await fetch(`/api/freelancer/status?userId=${userId}`)
           .then((r) => r.json())
           .catch(() => null);
@@ -322,7 +450,7 @@ export default function VagasPage() {
     return () => {
       cancel = true;
     };
-  }, [userId, loadTracker]);
+  }, [userId, loadTracker, loadMinhasVagas]);
 
   async function runHunt() {
     setHuntLoading(true);
@@ -399,7 +527,7 @@ export default function VagasPage() {
         prazoSugerido: data.prazoSugerido,
         pontosFortes: data.pontosFortes ?? [],
       });
-      await loadTracker();
+      await Promise.all([loadTracker(), loadMinhasVagas()]);
     } catch (err) {
       setMError((err as Error).message);
     } finally {
@@ -454,20 +582,21 @@ export default function VagasPage() {
     }
   }
 
-  async function prepareRemotive(externalId: string) {
+  async function prepareRemotive(job: HuntedJobUI) {
+    const externalId = job.externalId;
     setRmPrepId(externalId);
     setRmError(null);
     try {
       const res = await fetch("/api/applications/prepare", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, externalId, tipo: "remotive" }),
+        body: JSON.stringify({ userId, tipo: "remotive", job: jobPayload(job) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro desconhecido.");
       setRmPrepared((prev) => ({ ...prev, [externalId]: data }));
       setEditProposta((prev) => ({ ...prev, [externalId]: data.proposta }));
-      await loadTracker();
+      await Promise.all([loadTracker(), loadMinhasVagas()]);
     } catch (err) {
       setRmError((err as Error).message);
     } finally {
@@ -475,14 +604,15 @@ export default function VagasPage() {
     }
   }
 
-  async function prepareApp(externalId: string) {
+  async function prepareApp(job: HuntedJobUI) {
+    const externalId = job.externalId;
     setPrepLoadingId(externalId);
     setCopilotError(null);
     try {
       const res = await fetch("/api/applications/prepare", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, externalId }),
+        body: JSON.stringify({ userId, job: jobPayload(job) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro desconhecido.");
@@ -498,7 +628,7 @@ export default function VagasPage() {
           ])[0]),
         },
       }));
-      await loadTracker();
+      await Promise.all([loadTracker(), loadMinhasVagas()]);
     } catch (err) {
       setCopilotError((err as Error).message);
     } finally {
@@ -540,7 +670,7 @@ export default function VagasPage() {
           real: data.real,
         },
       }));
-      await loadTracker();
+      await Promise.all([loadTracker(), loadMinhasVagas()]);
     } catch (err) {
       setCopilotError((err as Error).message);
     } finally {
@@ -552,6 +682,24 @@ export default function VagasPage() {
   const aplicaveis = huntedJobs.filter((j) => !j.restrita);
   const restritas = huntedJobs.filter((j) => j.restrita);
   const visibleJobs = showRestritas ? [...aplicaveis, ...restritas] : aplicaveis;
+
+  // "Minhas vagas" — fontes disponíveis + lista filtrada (situação/fonte/score/texto).
+  const fontesDisponiveis = Array.from(
+    new Set(minhasVagas.map((v) => v.fonte)),
+  );
+  const vagasFiltradas = minhasVagas.filter((v) => {
+    const sit = !v.application
+      ? "curtida"
+      : v.application.status === "aguardando_envio"
+        ? "acompanhando"
+        : "enviada";
+    if (fSituacao !== "todas" && sit !== fSituacao) return false;
+    if (fFonte !== "todas" && v.fonte !== fFonte) return false;
+    if (v.score < fScoreMin) return false;
+    if (fBusca.trim() && !v.titulo.toLowerCase().includes(fBusca.toLowerCase()))
+      return false;
+    return true;
+  });
 
   if (loadingProfile) {
     return (
@@ -783,6 +931,21 @@ export default function VagasPage() {
                       >
                         {job.elegivel ? "elegível" : "descartada"}
                       </span>
+                      <button
+                        onClick={() => curtir(job, "freelancer")}
+                        disabled={
+                          savingId === job.externalId ||
+                          savedIds.includes(job.externalId)
+                        }
+                        title="Salvar em Minhas vagas"
+                        className="mt-1 border border-slate-300 px-2 py-0.5 text-xs text-slate-600 transition hover:border-[#3398DB] disabled:opacity-60"
+                      >
+                        {savedIds.includes(job.externalId)
+                          ? "✓ Salva"
+                          : savingId === job.externalId
+                            ? "..."
+                            : "♡ Salvar"}
+                      </button>
                     </div>
                   </div>
 
@@ -794,7 +957,7 @@ export default function VagasPage() {
                           Não dá pra enviar o lance daqui (conta gratuita).
                         </span>
                         <button
-                          onClick={() => prepareApp(job.externalId)}
+                          onClick={() => prepareApp(job)}
                           disabled={prepLoadingId === job.externalId}
                           className="border border-slate-300 px-3 py-1.5 text-sm text-slate-600 transition hover:border-slate-400 disabled:opacity-50"
                         >
@@ -805,7 +968,7 @@ export default function VagasPage() {
                       </div>
                     ) : (
                       <button
-                        onClick={() => prepareApp(job.externalId)}
+                        onClick={() => prepareApp(job)}
                         disabled={prepLoadingId === job.externalId}
                         className="mt-3 bg-[#3398DB] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b82c2] disabled:opacity-50"
                       >
@@ -1129,12 +1292,27 @@ export default function VagasPage() {
                       >
                         {job.elegivel ? "elegível" : "descartada"}
                       </span>
+                      <button
+                        onClick={() => curtir(job, "remotive")}
+                        disabled={
+                          savingId === job.externalId ||
+                          savedIds.includes(job.externalId)
+                        }
+                        title="Salvar em Minhas vagas"
+                        className="mt-1 border border-slate-300 px-2 py-0.5 text-xs text-slate-600 transition hover:border-[#3398DB] disabled:opacity-60"
+                      >
+                        {savedIds.includes(job.externalId)
+                          ? "✓ Salva"
+                          : savingId === job.externalId
+                            ? "..."
+                            : "♡ Salvar"}
+                      </button>
                     </div>
                   </div>
 
                   {job.elegivel && !app && (
                     <button
-                      onClick={() => prepareRemotive(job.externalId)}
+                      onClick={() => prepareRemotive(job)}
                       disabled={rmPrepId === job.externalId}
                       className="mt-3 rounded-lg bg-[#3398DB] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b82c2] disabled:opacity-50"
                     >
@@ -1335,10 +1513,10 @@ export default function VagasPage() {
         )}
       </section>
 
-      {/* Acompanhamento */}
+      {/* Minhas vagas (curtidas + acompanhadas) */}
       <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-2xl font-bold text-[#151D26]">Acompanhamento</h2>
+          <h2 className="text-2xl font-bold text-[#151D26]">Minhas vagas</h2>
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={syncStatus}
@@ -1348,165 +1526,276 @@ export default function VagasPage() {
               {syncLoading ? "Checando..." : "Atualizar status"}
             </button>
             <button
-              onClick={loadTracker}
-              disabled={trackerLoading}
+              onClick={loadMinhasVagas}
+              disabled={mvLoading}
               className="rounded-lg border border-slate-300 px-4 py-2 text-sm disabled:opacity-50"
             >
-              {trackerLoading ? "..." : "Recarregar"}
+              {mvLoading ? "..." : "Recarregar"}
             </button>
           </div>
         </div>
 
         {syncMsg && <p className="text-sm text-slate-600">{syncMsg}</p>}
         <p className="text-xs text-slate-400">
-          Este painel só acompanha — para <strong>enviar</strong> candidaturas,
-          use a seção <strong>Caça de vagas</strong> acima ↑. &quot;Atualizar
-          status&quot; consulta o Freelancer e marca cada lance como aceito,
-          recusado ou em shortlist (é grátis, não gasta seus bids).
+          Tudo que você <strong>curtiu</strong> (♡ Salvar) ou{" "}
+          <strong>preparou</strong> fica aqui — a busca não guarda nada sozinha.
+          &quot;Atualizar status&quot; checa os lances no Freelancer (grátis).
         </p>
 
-        <p className="text-xs text-slate-400">
-          Resumo do funil no topo da página ↑
-        </p>
-
-        {trackerItems.length > 0 && (
-          <ul className="space-y-2">
-            {trackerItems.map((item) => (
-              <li
-                key={item.id}
-                className="rounded-lg border border-slate-200 p-3"
+        {/* Filtros */}
+        <div className="space-y-3 border-y border-slate-100 py-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {(
+              [
+                ["todas", "Todas"],
+                ["curtida", "Curtidas"],
+                ["acompanhando", "Acompanhando"],
+                ["enviada", "Enviadas"],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                onClick={() => setFSituacao(id)}
+                className={`border px-3 py-1 text-sm transition ${
+                  fSituacao === id
+                    ? "border-[#3398DB] bg-[#3398DB] text-white"
+                    : "border-slate-300 text-slate-600 hover:border-slate-400"
+                }`}
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-medium">{item.titulo}</p>
-                    <p className="text-xs text-slate-400">
-                      {item.canal} · {item.modoEnvio}
-                    </p>
-                  </div>
-                  <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${
-                      item.status === "aceita"
-                        ? "bg-green-100 text-green-700"
-                        : item.status === "recusada"
-                          ? "bg-red-100 text-red-700"
-                          : item.status === "shortlist" ||
-                              item.status === "respondida"
-                            ? "bg-blue-100 text-blue-700"
-                            : "bg-amber-100 text-amber-700"
-                    }`}
-                  >
-                    {STATUS_LABEL[item.status] ?? item.status}
-                  </span>
-                </div>
+                {label}
+              </button>
+            ))}
+          </div>
+          {fontesDisponiveis.length > 1 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setFFonte("todas")}
+                className={`border px-3 py-1 text-xs transition ${
+                  fFonte === "todas"
+                    ? "border-[#151D26] bg-[#151D26] text-white"
+                    : "border-slate-300 text-slate-500 hover:border-slate-400"
+                }`}
+              >
+                Todas as fontes
+              </button>
+              {fontesDisponiveis.map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFFonte(f)}
+                  className={`border px-3 py-1 text-xs transition ${
+                    fFonte === f
+                      ? "border-[#151D26] bg-[#151D26] text-white"
+                      : "border-slate-300 text-slate-500 hover:border-slate-400"
+                  }`}
+                >
+                  {FONTE_LABEL[f] ?? f}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex flex-wrap items-center gap-4">
+            <label className="flex items-center gap-2 text-xs text-slate-500">
+              Score mín.: <strong>{fScoreMin}</strong>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={fScoreMin}
+                onChange={(e) => setFScoreMin(Number(e.target.value))}
+              />
+            </label>
+            <input
+              type="text"
+              value={fBusca}
+              onChange={(e) => setFBusca(e.target.value)}
+              placeholder="Buscar por título..."
+              className="min-w-[160px] flex-1 rounded-lg border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-[#3398DB]"
+            />
+          </div>
+        </div>
 
-                {item.portfolioVagaSlug && (
-                  <div className="mt-2 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-2 text-xs">
-                    <span className="text-[#3398DB]">🎯 Portfólio da vaga</span>
-                    <a
-                      href={`${PORTFOLIO_BASE}/p/${item.portfolioVagaSlug}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="underline hover:text-black"
-                    >
-                      Ver ↗
-                    </a>
-                    <button
-                      onClick={() => excluirPortfolioVaga(item.jobId)}
-                      disabled={pfVagaDelId === item.jobId}
-                      className="text-red-600 underline hover:text-red-700 disabled:opacity-50"
-                    >
-                      {pfVagaDelId === item.jobId ? "Excluindo..." : "Excluir"}
-                    </button>
-                  </div>
-                )}
-
-                {item.status === "aguardando_envio" ? (
-                  <div className="mt-3 space-y-2">
-                    {item.canal === "freelancer" ? (
-                      <>
-                        <p className="text-xs text-amber-700">
-                          ⚠️ Preparada mas ainda não enviada — envie o lance ou
-                          descarte.
-                        </p>
-                        <div className="flex flex-wrap items-end gap-3">
-                          <label className="text-xs text-slate-500">
-                            Valor
-                            <input
-                              type="number"
-                              min={1}
-                              value={trkInputs[item.id]?.amount ?? ""}
-                              onChange={(e) =>
-                                setTrkInputs((prev) => ({
-                                  ...prev,
-                                  [item.id]: {
-                                    ...prev[item.id],
-                                    amount: e.target.value,
-                                  },
-                                }))
-                              }
-                              className="mt-1 block w-28 rounded-lg border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-[#3398DB]"
-                            />
-                          </label>
-                          <label className="text-xs text-slate-500">
-                            Prazo (dias)
-                            <input
-                              type="number"
-                              min={1}
-                              value={trkInputs[item.id]?.period ?? ""}
-                              onChange={(e) =>
-                                setTrkInputs((prev) => ({
-                                  ...prev,
-                                  [item.id]: {
-                                    ...prev[item.id],
-                                    period: e.target.value,
-                                  },
-                                }))
-                              }
-                              className="mt-1 block w-24 rounded-lg border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-[#3398DB]"
-                            />
-                          </label>
-                        </div>
-                      </>
-                    ) : (
-                      <p className="text-xs text-amber-700">
-                        ⚠️ Proposta pronta — aplique no site ({item.canal}) e
-                        marque como enviada (ou descarte).
+        {vagasFiltradas.length === 0 ? (
+          <p className="text-sm text-slate-400">
+            {minhasVagas.length === 0
+              ? "Você ainda não salvou nenhuma vaga. Curta (♡ Salvar) ou prepare uma candidatura nos resultados da busca acima."
+              : "Nenhuma vaga com esses filtros."}
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {vagasFiltradas.map((v) => {
+              const app = v.application;
+              const sit = !app
+                ? "curtida"
+                : app.status === "aguardando_envio"
+                  ? "acompanhando"
+                  : "enviada";
+              return (
+                <li
+                  key={v.id}
+                  className="rounded-lg border border-slate-200 p-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{v.titulo}</p>
+                      <p className="text-xs text-slate-400">
+                        {FONTE_LABEL[v.fonte] ?? v.fonte} · score {v.score}
+                        {v.budget ? ` · ${v.budget}` : ""}
                       </p>
-                    )}
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => sendFromTracker(item)}
-                        disabled={trkSendId === item.id}
-                        className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs ${
+                          !app
+                            ? "bg-slate-100 text-slate-500"
+                            : app.status === "aceita"
+                              ? "bg-green-100 text-green-700"
+                              : app.status === "recusada"
+                                ? "bg-red-100 text-red-700"
+                                : app.status === "aguardando_envio"
+                                  ? "bg-amber-100 text-amber-700"
+                                  : "bg-blue-100 text-blue-700"
+                        }`}
                       >
-                        {trkSendId === item.id
-                          ? "Salvando..."
-                          : item.canal === "freelancer"
-                            ? "Enviar lance"
-                            : "Marcar como enviada"}
-                      </button>
+                        {!app
+                          ? "Curtida"
+                          : (STATUS_LABEL[app.status] ?? app.status)}
+                      </span>
                       <button
-                        onClick={() => discardApp(item.id)}
-                        disabled={trkDelId === item.id}
-                        className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-red-600 hover:border-red-400 disabled:opacity-50"
+                        onClick={() => excluirJob(v.id)}
+                        disabled={mvDelId === v.id}
+                        title="Excluir do banco"
+                        className="border border-slate-300 px-2 py-1 text-xs text-red-600 transition hover:border-red-400 disabled:opacity-50"
                       >
-                        {trkDelId === item.id ? "..." : "Descartar"}
+                        {mvDelId === v.id ? "..." : "🗑"}
                       </button>
                     </div>
                   </div>
-                ) : (
-                  <div className="mt-2 flex justify-end">
+
+                  {v.portfolioVagaSlug && (
+                    <div className="mt-2 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-2 text-xs">
+                      <span className="text-[#3398DB]">🎯 Portfólio da vaga</span>
+                      <a
+                        href={`${PORTFOLIO_BASE}/p/${v.portfolioVagaSlug}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="underline hover:text-black"
+                      >
+                        Ver ↗
+                      </a>
+                      <button
+                        onClick={() => excluirPortfolioVaga(v.id)}
+                        disabled={pfVagaDelId === v.id}
+                        className="text-red-600 underline hover:text-red-700 disabled:opacity-50"
+                      >
+                        {pfVagaDelId === v.id ? "Excluindo..." : "Excluir"}
+                      </button>
+                    </div>
+                  )}
+
+                  {sit === "curtida" && (
                     <button
-                      onClick={() => discardApp(item.id)}
-                      disabled={trkDelId === item.id}
-                      className="text-xs text-slate-400 underline hover:text-red-600 disabled:opacity-50"
+                      onClick={() => prepararDaLista(v)}
+                      disabled={mvPrepId === v.id}
+                      className="mt-3 bg-[#3398DB] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b82c2] disabled:opacity-50"
                     >
-                      {trkDelId === item.id ? "..." : "Remover"}
+                      {mvPrepId === v.id
+                        ? "Preparando..."
+                        : "Preparar candidatura"}
                     </button>
-                  </div>
-                )}
-              </li>
-            ))}
+                  )}
+
+                  {sit === "acompanhando" && app && (
+                    <div className="mt-3 space-y-2">
+                      {v.fonte === "freelancer" ? (
+                        <>
+                          <p className="text-xs text-amber-700">
+                            ⚠️ Preparada mas ainda não enviada — envie o lance ou
+                            descarte.
+                          </p>
+                          <div className="flex flex-wrap items-end gap-3">
+                            <label className="text-xs text-slate-500">
+                              Valor
+                              <input
+                                type="number"
+                                min={1}
+                                value={trkInputs[app.id]?.amount ?? ""}
+                                onChange={(e) =>
+                                  setTrkInputs((prev) => ({
+                                    ...prev,
+                                    [app.id]: {
+                                      ...prev[app.id],
+                                      amount: e.target.value,
+                                    },
+                                  }))
+                                }
+                                className="mt-1 block w-28 rounded-lg border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-[#3398DB]"
+                              />
+                            </label>
+                            <label className="text-xs text-slate-500">
+                              Prazo (dias)
+                              <input
+                                type="number"
+                                min={1}
+                                value={trkInputs[app.id]?.period ?? ""}
+                                onChange={(e) =>
+                                  setTrkInputs((prev) => ({
+                                    ...prev,
+                                    [app.id]: {
+                                      ...prev[app.id],
+                                      period: e.target.value,
+                                    },
+                                  }))
+                                }
+                                className="mt-1 block w-24 rounded-lg border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-[#3398DB]"
+                              />
+                            </label>
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-xs text-amber-700">
+                          ⚠️ Proposta pronta — aplique no site (
+                          {FONTE_LABEL[v.fonte] ?? v.fonte}) e marque como
+                          enviada.
+                        </p>
+                      )}
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() =>
+                            sendFromTracker({
+                              id: app.id,
+                              jobId: v.id,
+                              titulo: v.titulo,
+                              canal: v.fonte,
+                              status: app.status,
+                              modoEnvio: app.modoEnvio,
+                              valorSugerido: app.valorSugerido,
+                              prazoSugerido: app.prazoSugerido,
+                              portfolioVagaSlug: v.portfolioVagaSlug,
+                            })
+                          }
+                          disabled={trkSendId === app.id}
+                          className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+                        >
+                          {trkSendId === app.id
+                            ? "Salvando..."
+                            : v.fonte === "freelancer"
+                              ? "Enviar lance"
+                              : "Marcar como enviada"}
+                        </button>
+                        <button
+                          onClick={() => discardApp(app.id)}
+                          disabled={trkDelId === app.id}
+                          className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-red-600 hover:border-red-400 disabled:opacity-50"
+                        >
+                          {trkDelId === app.id ? "..." : "Descartar candidatura"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

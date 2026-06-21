@@ -36,6 +36,53 @@ function parsePrazo(s?: string | null): number {
   return n || 7;
 }
 
+/** Dados de uma vaga vindos da busca (a UI reenvia ao curtir/preparar). */
+export interface JobInput {
+  externalId: string;
+  titulo: string;
+  descricao: string;
+  budget?: string | null;
+  skills?: string[];
+  score?: number;
+  elegivel?: boolean;
+}
+
+/**
+ * Persiste (ou atualiza) uma vaga ESCOLHIDA pelo usuário, ligada ao userId.
+ * A busca não salva nada; um Job só existe via aqui (curtir/salvar) ou ao
+ * preparar candidatura. Garante o Channel da plataforma (por userId+tipo).
+ */
+export async function saveJob(userId: string, tipo: string, job: JobInput) {
+  const channel = await prisma.channel.upsert({
+    where: { userId_tipo: { userId, tipo } },
+    update: {},
+    create: {
+      userId,
+      tipo,
+      modo: tipo === "freelancer" ? "auto" : "copiloto",
+    },
+  });
+  const data = {
+    userId,
+    titulo: job.titulo,
+    descricao: job.descricao,
+    budget: job.budget ?? null,
+    skills: JSON.stringify(job.skills ?? []),
+    score: job.score ?? 0,
+    statusVaga: job.elegivel === false ? "descartada" : "elegivel",
+  };
+  return prisma.job.upsert({
+    where: {
+      channelId_externalId: {
+        channelId: channel.id,
+        externalId: job.externalId,
+      },
+    },
+    update: data,
+    create: { channelId: channel.id, externalId: job.externalId, ...data },
+  });
+}
+
 /**
  * M5 — Fluxo copiloto.
  * Conecta a caça de vagas (M3) ao motor de proposta (M4): a partir de uma
@@ -43,7 +90,7 @@ function parsePrazo(s?: string | null): number {
  */
 export async function prepareApplication(
   userId: string,
-  externalId: string,
+  jobInput: JobInput,
   tipo: string = "freelancer",
 ) {
   const user = await prisma.user.findUnique({
@@ -52,17 +99,11 @@ export async function prepareApplication(
   });
   if (!user || !user.profile) throw new Error("Perfil não encontrado.");
 
+  // Persiste a vaga escolhida (com userId) e garante o canal.
+  const job = await saveJob(userId, tipo, jobInput);
   const channel = await prisma.channel.findUnique({
     where: { userId_tipo: { userId, tipo } },
   });
-  if (!channel) throw new Error("Rode a caça de vagas primeiro.");
-
-  const job = await prisma.job.findUnique({
-    where: {
-      channelId_externalId: { channelId: channel.id, externalId },
-    },
-  });
-  if (!job) throw new Error("Vaga não encontrada.");
 
   const profile: ProfileDraft = {
     area: user.profile.area,
@@ -88,7 +129,7 @@ export async function prepareApplication(
     maxChars: tipo === "freelancer" ? 1500 : 2500,
   });
 
-  const modoEnvio = channel.modo === "auto" ? "auto" : "copiloto";
+  const modoEnvio = channel?.modo === "auto" ? "auto" : "copiloto";
 
   const application = await prisma.application.upsert({
     where: { jobId: job.id },
@@ -111,7 +152,7 @@ export async function prepareApplication(
 
   return {
     applicationId: application.id,
-    externalId,
+    externalId: job.externalId,
     titulo: job.titulo,
     modoEnvio,
     proposta: proposal.proposta,
@@ -155,9 +196,10 @@ export async function prepareManualApplication(
   const externalId = input.link?.trim() || `manual-${crypto.randomUUID()}`;
   const job = await prisma.job.upsert({
     where: { channelId_externalId: { channelId: channel.id, externalId } },
-    update: { titulo: input.titulo, descricao: input.descricao },
+    update: { userId, titulo: input.titulo, descricao: input.descricao },
     create: {
       channelId: channel.id,
+      userId,
       externalId,
       titulo: input.titulo,
       descricao: input.descricao,
