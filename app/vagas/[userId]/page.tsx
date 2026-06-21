@@ -127,6 +127,7 @@ export default function VagasPage() {
   const [fcConfigured, setFcConfigured] = useState(false);
   const [fcConnected, setFcConnected] = useState(false);
   const [fcOwn, setFcOwn] = useState(false); // conexão própria (vs. ponte)
+  const [fcDisc, setFcDisc] = useState(false); // desconectando...
 
   // Caça de vagas
   const [huntLoading, setHuntLoading] = useState(false);
@@ -453,6 +454,29 @@ export default function VagasPage() {
       cancel = true;
     };
   }, [userId, loadTracker, loadMinhasVagas]);
+
+  async function desconectarFreelancer() {
+    if (!confirm("Desconectar sua conta do Freelancer deste perfil?")) return;
+    setFcDisc(true);
+    try {
+      const res = await fetch("/api/freelancer/disconnect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      if (res.ok) {
+        const st = await fetch(`/api/freelancer/status?userId=${userId}`)
+          .then((r) => r.json())
+          .catch(() => null);
+        if (st) {
+          setFcConnected(Boolean(st.connected));
+          setFcOwn(Boolean(st.own));
+        }
+      }
+    } finally {
+      setFcDisc(false);
+    }
+  }
 
   async function runHunt() {
     setHuntLoading(true);
@@ -801,6 +825,13 @@ export default function VagasPage() {
               >
                 Otimizar perfil →
               </a>
+              <button
+                onClick={desconectarFreelancer}
+                disabled={fcDisc}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-red-600 transition hover:border-red-400 disabled:opacity-50"
+              >
+                {fcDisc ? "Desconectando..." : "Desconectar"}
+              </button>
             </>
           ) : fcConfigured ? (
             <>

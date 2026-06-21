@@ -166,6 +166,19 @@ export async function isConnected(userId: string): Promise<boolean> {
   return Boolean(await getValidToken(userId));
 }
 
+/** Remove a conexão PRÓPRIA do perfil (limpa o token salvo). Não apaga o canal
+ *  (evita cascata nos jobs) — só zera as credenciais. */
+export async function disconnect(userId: string): Promise<void> {
+  const channel = await prisma.channel.findUnique({
+    where: { userId_tipo: { userId, tipo: "freelancer" } },
+  });
+  if (!channel) return;
+  await prisma.channel.update({
+    where: { userId_tipo: { userId, tipo: "freelancer" } },
+    data: { credenciais: encryptString(JSON.stringify({})) },
+  });
+}
+
 export type ConnectionKind = "own" | "bridge" | "none";
 
 /**
