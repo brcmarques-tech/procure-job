@@ -126,6 +126,7 @@ export default function VagasPage() {
   // Conexão com o Freelancer (OAuth)
   const [fcConfigured, setFcConfigured] = useState(false);
   const [fcConnected, setFcConnected] = useState(false);
+  const [fcOwn, setFcOwn] = useState(false); // conexão própria (vs. ponte)
 
   // Caça de vagas
   const [huntLoading, setHuntLoading] = useState(false);
@@ -440,6 +441,7 @@ export default function VagasPage() {
         if (!cancel && st) {
           setFcConfigured(Boolean(st.configured));
           setFcConnected(Boolean(st.connected));
+          setFcOwn(Boolean(st.own));
         }
       } catch (err) {
         if (!cancel) setLoadError((err as Error).message);
@@ -788,10 +790,10 @@ export default function VagasPage() {
         </p>
 
         <div className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 p-3">
-          {fcConnected ? (
+          {fcOwn ? (
             <>
               <span className="text-sm font-medium text-green-700">
-                ✓ Conectado ao Freelancer — busca de vagas reais ativa
+                ✓ Conectado ao Freelancer (sua conta) — busca real ativa
               </span>
               <a
                 href={`/perfil-freelancer/${userId}`}
@@ -803,19 +805,24 @@ export default function VagasPage() {
           ) : fcConfigured ? (
             <>
               <span className="text-sm text-slate-600">
-                Conecte sua conta do Freelancer para buscar vagas reais.
+                {fcConnected
+                  ? "Hoje a busca usa uma conta compartilhada. Conecte a SUA conta do Freelancer para usar a sua."
+                  : "Conecte sua conta do Freelancer para buscar vagas reais."}
               </span>
               <a
                 href={`/api/freelancer/connect?userId=${userId}`}
                 className="rounded-lg bg-[#3398DB] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b82c2]"
               >
-                Conectar Freelancer
+                Conectar minha conta do Freelancer
               </a>
             </>
+          ) : fcConnected ? (
+            <span className="text-sm font-medium text-green-700">
+              ✓ Busca de vagas reais ativa (conta compartilhada)
+            </span>
           ) : (
             <span className="text-sm text-amber-600">
-              OAuth do Freelancer não configurado (faltam Client ID/Secret no
-              .env). Usando modo demonstração.
+              OAuth do Freelancer não configurado. Usando modo demonstração.
             </span>
           )}
         </div>

@@ -165,3 +165,22 @@ export async function getValidToken(userId: string): Promise<string | null> {
 export async function isConnected(userId: string): Promise<boolean> {
   return Boolean(await getValidToken(userId));
 }
+
+export type ConnectionKind = "own" | "bridge" | "none";
+
+/**
+ * Diz se o perfil está conectado pela conta PRÓPRIA ("own"), pela conta
+ * compartilhada do .env ("bridge"), ou não conectado ("none"). Usado pela UI
+ * pra oferecer "Conectar minha conta" mesmo quando a ponte já dá vagas reais.
+ */
+export async function getConnectionKind(
+  userId: string,
+): Promise<ConnectionKind> {
+  const channel = await prisma.channel.findUnique({
+    where: { userId_tipo: { userId, tipo: "freelancer" } },
+  });
+  const creds = parseCreds(channel?.credenciais);
+  if (creds.access_token) return "own";
+  if (process.env.FREELANCER_OAUTH_TOKEN?.trim()) return "bridge";
+  return "none";
+}
