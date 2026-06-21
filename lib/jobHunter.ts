@@ -6,7 +6,6 @@ import {
   type FreelancerProject,
 } from "./freelancer";
 import { scoreJobsBatch } from "./jobs";
-import { getValidToken } from "./freelancerAuth";
 import { searchRemoteJobs, REMOTE_SOURCES } from "./remoteSources";
 import type { ProfileDraft } from "./profile";
 
@@ -64,27 +63,26 @@ export async function huntJobs(
     keywordsBusca: JSON.parse(user.profile.keywordsBusca),
   };
 
-  const token = await getValidToken(userId);
   let projects: FreelancerProject[] = [];
-  let mode: "api" | "mock";
+  let mode: "api" | "mock" = "api";
 
-  emit({
-    phase: "search",
-    message: token
-      ? "Buscando vagas reais no Freelancer..."
-      : "Buscando vagas (modo demonstração)...",
-  });
+  emit({ phase: "search", message: "Buscando vagas no Freelancer..." });
 
-  if (token) {
-    mode = "api";
+  // Busca PÚBLICA — não usa conta de ninguém. O token (conexão própria) só é
+  // necessário pra DAR LANCE, não pra pesquisar.
+  try {
     const keywords = profile.keywordsBusca.slice(0, 3);
     const results = await Promise.all(
-      keywords.map((k) => searchActiveProjects(token, k).catch(() => [])),
+      keywords.map((k) => searchActiveProjects(k).catch(() => [])),
     );
     const byId = new Map<number, FreelancerProject>();
     for (const p of results.flat()) byId.set(p.id, p);
     projects = [...byId.values()];
-  } else {
+  } catch {
+    projects = [];
+  }
+  // Sem resultados (ou API fora do ar) → cai no modo demonstração.
+  if (projects.length === 0) {
     mode = "mock";
     projects = MOCK_PROJECTS;
   }

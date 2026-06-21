@@ -131,11 +131,9 @@ export async function storeToken(
 }
 
 /**
- * Retorna um access token válido para o usuário:
- * 1) a conexão própria do perfil (renovando via refresh se estiver expirando);
- * 2) PONTE: sem conexão própria, cai no FREELANCER_OAUTH_TOKEN do .env — uma
- *    conta só, compartilhada, até o app OAuth do Freelancer ser aprovado e cada
- *    perfil conectar a própria conta pelo botão "Conectar Freelancer".
+ * Token de acesso do perfil — APENAS a conexão PRÓPRIA (usada só para DAR LANCE).
+ * A busca de vagas é pública e não passa por aqui. Sem conexão própria → null
+ * (não usa conta de ninguém; o usuário conecta a sua para poder dar lance).
  */
 export async function getValidToken(userId: string): Promise<string | null> {
   const channel = await prisma.channel.findUnique({
@@ -158,8 +156,7 @@ export async function getValidToken(userId: string): Promise<string | null> {
     return creds.access_token;
   }
 
-  const envToken = process.env.FREELANCER_OAUTH_TOKEN?.trim();
-  return envToken || null;
+  return null;
 }
 
 export async function isConnected(userId: string): Promise<boolean> {
@@ -179,13 +176,9 @@ export async function disconnect(userId: string): Promise<void> {
   });
 }
 
-export type ConnectionKind = "own" | "bridge" | "none";
+export type ConnectionKind = "own" | "none";
 
-/**
- * Diz se o perfil está conectado pela conta PRÓPRIA ("own"), pela conta
- * compartilhada do .env ("bridge"), ou não conectado ("none"). Usado pela UI
- * pra oferecer "Conectar minha conta" mesmo quando a ponte já dá vagas reais.
- */
+/** Diz se o perfil tem conexão PRÓPRIA ("own", pra dar lance) ou não ("none"). */
 export async function getConnectionKind(
   userId: string,
 ): Promise<ConnectionKind> {
@@ -193,7 +186,5 @@ export async function getConnectionKind(
     where: { userId_tipo: { userId, tipo: "freelancer" } },
   });
   const creds = parseCreds(channel?.credenciais);
-  if (creds.access_token) return "own";
-  if (process.env.FREELANCER_OAUTH_TOKEN?.trim()) return "bridge";
-  return "none";
+  return creds.access_token ? "own" : "none";
 }

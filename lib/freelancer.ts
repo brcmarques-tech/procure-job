@@ -58,11 +58,11 @@ const FREELANCER_BID_ERRORS: Record<string, string> = {
 
 /**
  * Busca projetos ativos por palavras-chave. (canal 🟢)
- * `limit` evita puxar as 100 vagas padrão da API por busca — pontuar tudo
- * com IA é caro/lento, e só interessam as mais recentes/compatíveis.
+ * É uma busca PÚBLICA — NÃO usa token / conta de ninguém (qualquer um pode
+ * listar projetos ativos, igual a um agregador). O token só é preciso pra dar
+ * lance. `limit` evita puxar as 100 vagas padrão por busca (pontuar com IA é caro).
  */
 export async function searchActiveProjects(
-  token: string,
   query: string,
   limit = 20,
 ): Promise<FreelancerProject[]> {
@@ -73,7 +73,7 @@ export async function searchActiveProjects(
   url.searchParams.set("upgrade_details", "true"); // flags de restrição (pf_only, NDA...)
   url.searchParams.set("limit", String(limit));
 
-  const res = await fetch(url, { headers: authHeaders(token) });
+  const res = await fetch(url, { headers: { "Content-Type": "application/json" } });
   if (!res.ok) {
     throw new Error(`searchActiveProjects falhou: ${res.status} ${await res.text()}`);
   }

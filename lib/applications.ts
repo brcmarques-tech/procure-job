@@ -278,6 +278,11 @@ export async function sendApplication(
   // usuário aplica no site e a gente só registra o envio.
   const isFreelancer = job.channel.tipo === "freelancer";
   const token = isFreelancer ? await getValidToken(userId) : null;
+  if (isFreelancer && !token) {
+    throw new Error(
+      "Conecte sua conta do Freelancer para enviar o lance. As vagas são públicas, mas o lance precisa da sua conta.",
+    );
+  }
 
   let bidId: number | null = null;
   if (token) {

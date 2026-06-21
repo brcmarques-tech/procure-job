@@ -125,8 +125,7 @@ export default function VagasPage() {
 
   // Conexão com o Freelancer (OAuth)
   const [fcConfigured, setFcConfigured] = useState(false);
-  const [fcConnected, setFcConnected] = useState(false);
-  const [fcOwn, setFcOwn] = useState(false); // conexão própria (vs. ponte)
+  const [fcOwn, setFcOwn] = useState(false); // conexão própria (pra dar lance)
   const [fcDisc, setFcDisc] = useState(false); // desconectando...
 
   // Caça de vagas
@@ -441,7 +440,6 @@ export default function VagasPage() {
           .catch(() => null);
         if (!cancel && st) {
           setFcConfigured(Boolean(st.configured));
-          setFcConnected(Boolean(st.connected));
           setFcOwn(Boolean(st.own));
         }
       } catch (err) {
@@ -469,7 +467,6 @@ export default function VagasPage() {
           .then((r) => r.json())
           .catch(() => null);
         if (st) {
-          setFcConnected(Boolean(st.connected));
           setFcOwn(Boolean(st.own));
         }
       }
@@ -817,7 +814,7 @@ export default function VagasPage() {
           {fcOwn ? (
             <>
               <span className="text-sm font-medium text-green-700">
-                ✓ Conectado ao Freelancer (sua conta) — busca real ativa
+                ✓ Conta do Freelancer conectada — você pode enviar lances daqui.
               </span>
               <a
                 href={`/perfil-freelancer/${userId}`}
@@ -833,28 +830,22 @@ export default function VagasPage() {
                 {fcDisc ? "Desconectando..." : "Desconectar"}
               </button>
             </>
-          ) : fcConfigured ? (
+          ) : (
             <>
               <span className="text-sm text-slate-600">
-                {fcConnected
-                  ? "Hoje a busca usa uma conta compartilhada. Conecte a SUA conta do Freelancer para usar a sua."
-                  : "Conecte sua conta do Freelancer para buscar vagas reais."}
+                🔎 As vagas são <strong>públicas</strong> — busque sem conectar
+                nada. Conecte sua conta só para <strong>enviar lances</strong>{" "}
+                direto daqui.
               </span>
-              <a
-                href={`/api/freelancer/connect?userId=${userId}`}
-                className="rounded-lg bg-[#3398DB] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b82c2]"
-              >
-                Conectar minha conta do Freelancer
-              </a>
+              {fcConfigured && (
+                <a
+                  href={`/api/freelancer/connect?userId=${userId}`}
+                  className="rounded-lg bg-[#3398DB] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b82c2]"
+                >
+                  Conectar minha conta do Freelancer
+                </a>
+              )}
             </>
-          ) : fcConnected ? (
-            <span className="text-sm font-medium text-green-700">
-              ✓ Busca de vagas reais ativa (conta compartilhada)
-            </span>
-          ) : (
-            <span className="text-sm text-amber-600">
-              OAuth do Freelancer não configurado. Usando modo demonstração.
-            </span>
           )}
         </div>
 
