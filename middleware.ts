@@ -1,21 +1,23 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { verifySession } from "@/lib/session";
 
-const COOKIE = "pj_auth";
+const COOKIE = "pj_session";
 
 /**
- * Login simples por senha compartilhada (env APP_PASSWORD).
- * - Portfólios públicos (/p/...) e assets ficam SEMPRE abertos.
- * - O resto (ferramenta + APIs) exige estar logado.
- * - Se APP_PASSWORD não estiver definido, o login fica DESATIVADO (app aberto),
- *   pra dar pra deployar o código sem travar nada antes de configurar a senha.
+ * Gate de acesso por conta (login = nome + senha; cookie de sessão assinado).
+ * - Portfólios públicos (/p/...), imagens (/img/...) e assets ficam SEMPRE abertos.
+ * - O resto (ferramenta + APIs) exige sessão válida.
+ * - /cadastro e /api/accounts/register ficam abertos (são protegidos pela
+ *   senha mestre no próprio handler).
+ * - Se SESSION_SECRET não estiver definido, o login fica DESATIVADO (app aberto),
+ *   pra dar pra deployar sem travar nada antes de configurar os segredos.
  */
-export function middleware(req: NextRequest) {
-  const senha = process.env.APP_PASSWORD;
-  if (!senha) return NextResponse.next(); // login desativado
+export async function middleware(req: NextRequest) {
+  if (!process.env.SESSION_SECRET) return NextResponse.next(); // login desativado
 
-  const ok = req.cookies.get(COOKIE)?.value === senha;
-  if (ok) return NextResponse.next();
+  const accountId = await verifySession(req.cookies.get(COOKIE)?.value);
+  if (accountId) return NextResponse.next();
 
   const { pathname } = req.nextUrl;
   if (pathname.startsWith("/api/")) {
@@ -28,8 +30,8 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Roda em tudo, EXCETO: portfólios públicos, login, e estáticos.
+  // Roda em tudo, EXCETO: portfólios públicos, login/cadastro, e estáticos.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|p/|img/|illustrations/|generated/|login|api/login|api/ai-proxy).*)",
+    "/((?!_next/static|_next/image|favicon.ico|p/|img/|illustrations/|generated/|login|cadastro|api/login|api/accounts/register|api/ai-proxy).*)",
   ],
 };

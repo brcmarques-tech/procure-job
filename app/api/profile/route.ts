@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
+import { denyIfNotOwner } from "@/lib/authGuard";
 
 /**
  * Carrega o usuário + perfil canônico (+ portfólio publicado, se houver)
@@ -11,6 +12,8 @@ export async function GET(req: NextRequest) {
   if (!userId) {
     return Response.json({ error: "userId é obrigatório." }, { status: 400 });
   }
+  const deny = await denyIfNotOwner(req, userId);
+  if (deny) return deny;
 
   const user = await prisma.user.findUnique({
     where: { id: userId },

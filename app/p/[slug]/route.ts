@@ -27,6 +27,13 @@ export async function GET(
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Portfólio</title>
+<style>
+/* Baseline responsivo — blinda o layout no celular mesmo se o CSS gerado
+   escorregar (sem overflow horizontal; imagens/mídia nunca estouram). */
+*,*::before,*::after{box-sizing:border-box}
+html,body{max-width:100%;overflow-x:hidden}
+img,svg,video,canvas,iframe{max-width:100%;height:auto}
+</style>
 <style>${portfolio.css}</style>
 </head>
 <body>${portfolio.html}</body>

@@ -3,6 +3,7 @@ import { logError } from "@/lib/logError";
 import { z } from "zod";
 import { getValidToken } from "@/lib/freelancerAuth";
 import { addJobs, removeJobs, getSelfProfile } from "@/lib/freelancer";
+import { denyIfNotOwner } from "@/lib/authGuard";
 
 const schema = z.object({
   userId: z.string().min(1),
@@ -17,6 +18,8 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Dados inválidos." }, { status: 400 });
   }
   const { userId, addIds, removeIds } = parsed.data;
+  const deny = await denyIfNotOwner(req, userId);
+  if (deny) return deny;
 
   const token = await getValidToken(userId);
   if (!token) {

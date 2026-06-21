@@ -16,11 +16,11 @@ export default function StatBand({
       {items.map((it, i) => (
         <div
           key={it.label}
-          className={`px-5 py-7 text-center ${
+          className={`px-3 py-5 text-center sm:px-5 sm:py-7 ${
             i > 0 ? "border-l border-[#EBEBEB]" : ""
           } ${i >= 2 ? "border-t border-[#EBEBEB] sm:border-t-0" : ""}`}
         >
-          <div className="text-3xl font-bold tracking-tight text-[#151D26] sm:text-4xl">
+          <div className="text-2xl font-bold tracking-tight text-[#151D26] sm:text-4xl">
             {it.value}
           </div>
           <div className="mt-1 text-sm text-[#517193]">{it.label}</div>

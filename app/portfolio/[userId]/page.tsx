@@ -266,7 +266,7 @@ export default function PortfolioPage() {
         )}
 
         {images.length > 0 && (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {images.map((img) => (
               // eslint-disable-next-line @next/next/no-img-element
               <figure key={img.role} className="space-y-1">
@@ -339,7 +339,7 @@ export default function PortfolioPage() {
             <iframe
               title="Pré-visualização do portfólio"
               srcDoc={pfDoc}
-              className="h-[600px] w-full rounded-lg border border-slate-300"
+              className="h-[420px] w-full rounded-lg border border-slate-300 sm:h-[600px]"
             />
           </div>
         )}

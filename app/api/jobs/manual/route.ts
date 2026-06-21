@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { logError } from "@/lib/logError";
 import { z } from "zod";
 import { prepareManualApplication } from "@/lib/applications";
+import { denyIfNotOwner } from "@/lib/authGuard";
 
 export const maxDuration = 120;
 
@@ -25,6 +26,8 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
+  const deny = await denyIfNotOwner(req, parsed.data.userId);
+  if (deny) return deny;
   try {
     const result = await prepareManualApplication(parsed.data.userId, {
       plataforma: parsed.data.plataforma,

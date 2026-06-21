@@ -12,9 +12,16 @@ export interface UserListItem {
   atualizadoEm: string;
 }
 
-/** Lista todos os perfis criados (para a central de perfis na tela inicial). */
-export async function listUsers(): Promise<UserListItem[]> {
+/**
+ * Lista os perfis da conta (central de perfis na tela inicial).
+ * - `accountId` string → só os perfis daquela conta.
+ * - `accountId` undefined → sem escopo (modo aberto, sem login).
+ */
+export async function listUsers(
+  accountId?: string | null,
+): Promise<UserListItem[]> {
   const users = await prisma.user.findMany({
+    where: accountId === undefined ? {} : { accountId },
     include: { profile: true, portfolio: true },
     orderBy: { createdAt: "desc" },
   });

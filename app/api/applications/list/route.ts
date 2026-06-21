@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { logError } from "@/lib/logError";
 import { listApplications } from "@/lib/tracker";
+import { denyIfNotOwner } from "@/lib/authGuard";
 
 /** M6 — lista as candidaturas do usuário + funil. */
 export async function GET(req: NextRequest) {
@@ -8,6 +9,8 @@ export async function GET(req: NextRequest) {
   if (!userId) {
     return Response.json({ error: "userId é obrigatório." }, { status: 400 });
   }
+  const deny = await denyIfNotOwner(req, userId);
+  if (deny) return deny;
   try {
     const result = await listApplications(userId);
     return Response.json(result);

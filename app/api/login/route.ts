@@ -1,21 +1,36 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { prisma } from "@/lib/db";
+import { verifyPassword } from "@/lib/password";
+import { signSession } from "@/lib/session";
+import { SESSION_COOKIE } from "@/lib/authGuard";
 
-const schema = z.object({ senha: z.string().min(1) });
+export const runtime = "nodejs";
 
-/** Login simples — confere a senha (env APP_PASSWORD) e grava o cookie. */
+const schema = z.object({
+  nome: z.string().min(1),
+  senha: z.string().min(1),
+});
+
+/** Login por conta: confere nome + senha e grava o cookie de sessão assinado. */
 export async function POST(req: NextRequest) {
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     return Response.json({ error: "Dados inválidos." }, { status: 400 });
   }
-  const esperada = process.env.APP_PASSWORD;
-  if (!esperada || parsed.data.senha !== esperada) {
-    return Response.json({ error: "Senha incorreta." }, { status: 401 });
+  const { nome, senha } = parsed.data;
+
+  const account = await prisma.account.findUnique({ where: { nome } });
+  if (!account || !verifyPassword(senha, account.senhaHash)) {
+    return Response.json(
+      { error: "Nome ou senha incorretos." },
+      { status: 401 },
+    );
   }
+
   const res = NextResponse.json({ ok: true });
-  res.cookies.set("pj_auth", esperada, {
+  res.cookies.set(SESSION_COOKIE, await signSession(account.id), {
     httpOnly: true,
     sameSite: "lax",
     path: "/",

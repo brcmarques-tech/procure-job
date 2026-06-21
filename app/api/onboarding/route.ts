@@ -3,6 +3,7 @@ import { logError } from "@/lib/logError";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { buildProfile } from "@/lib/profile";
+import { getAccountId, authEnabled } from "@/lib/authGuard";
 
 const schema = z.object({
   nome: z.string().min(1, "Informe o nome."),
@@ -36,11 +37,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const user = await prisma.user.upsert({
-    where: { email },
-    update: { nome },
-    create: { nome, email },
-  });
+  // Perfil pertence à conta logada (e-mail é único POR conta). Em modo aberto
+  // (sem login), accountId fica null. findFirst+create/update evita o problema
+  // de upsert com chave composta nullable.
+  const accountId = authEnabled() ? await getAccountId(req) : null;
+  const existing = await prisma.user.findFirst({ where: { email, accountId } });
+  const user = existing
+    ? await prisma.user.update({ where: { id: existing.id }, data: { nome } })
+    : await prisma.user.create({ data: { nome, email, accountId } });
 
   const profileData = {
     area: draft.area,

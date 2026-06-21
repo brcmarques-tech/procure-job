@@ -6,6 +6,7 @@ import { getValidToken } from "@/lib/freelancerAuth";
 import { getSelfProfile, resolveJobIds } from "@/lib/freelancer";
 import { optimizeFreelancerProfile } from "@/lib/profileOptimizer";
 import type { ProfileDraft } from "@/lib/profile";
+import { denyIfNotOwner } from "@/lib/authGuard";
 
 export const maxDuration = 120;
 
@@ -21,6 +22,8 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Dados inválidos." }, { status: 400 });
   }
   const { userId } = parsed.data;
+  const deny = await denyIfNotOwner(req, userId);
+  if (deny) return deny;
 
   const token = await getValidToken(userId);
   if (!token) {

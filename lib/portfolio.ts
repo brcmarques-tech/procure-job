@@ -84,6 +84,11 @@ ESTRUTURA DO PORTFÓLIO (adapte ao perfil do freelancer — NÃO é uma loja):
 
 REGRAS:
 - HTML semântico, responsivo (mobile-first, funciona em 390px e 1440px).
+- RESPONSIVIDADE OBRIGATÓRIA: inclua uma @media (max-width:600px) que (a) colapse
+  TODOS os grids multi-coluna para 1 coluna, (b) empilhe heros/seções de 2 colunas
+  (vire flex-direction:column), (c) reduza o tamanho do hero e os paddings laterais,
+  e (d) empilhe o header (links viram coluna ou menu simples). Largura de imagens
+  sempre max-width:100%. Nada pode causar rolagem horizontal em 375–390px.
 - Sem frameworks, sem JS, sem dependências externas EXCETO o Google Fonts
   acima. Não use imagens externas (sem URLs de placeholder).
 - Conteúdo 100% em português, fiel ao perfil. Nada de "lorem ipsum".

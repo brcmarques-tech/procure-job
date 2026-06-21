@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { logError } from "@/lib/logError";
 import { z } from "zod";
 import { huntRemotiveJobs } from "@/lib/jobHunter";
+import { denyIfNotOwner } from "@/lib/authGuard";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -18,6 +19,8 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Dados inválidos." }, { status: 400 });
   }
   const { userId, sources } = parsed.data;
+  const deny = await denyIfNotOwner(req, userId);
+  if (deny) return deny;
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({

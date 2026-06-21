@@ -1337,9 +1337,9 @@ export default function VagasPage() {
 
       {/* Acompanhamento */}
       <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-2xl font-bold text-[#151D26]">Acompanhamento</h2>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={syncStatus}
               disabled={syncLoading}

@@ -49,6 +49,19 @@ export default function OnboardingPage() {
   const [perfisMsg, setPerfisMsg] = useState<string | null>(null);
   const [perfisOpen, setPerfisOpen] = useState(false); // fechado por padrão
 
+  // Conta logada (nome + botão Sair). null = modo aberto / sem login.
+  const [contaNome, setContaNome] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("/api/me")
+      .then((r) => r.json())
+      .then((d) => setContaNome(d.nome ?? null))
+      .catch(() => {});
+  }, []);
+  async function sair() {
+    await fetch("/api/logout", { method: "POST" }).catch(() => {});
+    router.push("/login");
+  }
+
   const loadPerfis = useCallback(async () => {
     setPerfisLoading(true);
     try {
@@ -268,9 +281,10 @@ export default function OnboardingPage() {
   // ---- Etapa inicial ----
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 pt-8">
+      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 pt-6 sm:px-6 sm:pt-8">
         <Stepper current="perfil" />
 
+        <div className="flex items-center gap-2 sm:gap-3">
         {/* Meus perfis — no mesmo nível do stepper, à direita; abre flutuando */}
         {(perfisLoading || perfis.length > 0) && (
           <div className="relative shrink-0">
@@ -289,7 +303,7 @@ export default function OnboardingPage() {
             </button>
 
             {perfisOpen && (
-              <div className="absolute right-0 top-full z-30 mt-2 max-h-[70vh] w-72 space-y-2 overflow-auto border border-slate-200 bg-white p-3 shadow-lg">
+              <div className="absolute right-0 top-full z-30 mt-2 max-h-[70vh] w-[min(20rem,calc(100vw-2rem))] space-y-2 overflow-auto border border-slate-200 bg-white p-3 shadow-lg">
                 {perfisMsg && (
                   <p className="text-xs text-slate-600">{perfisMsg}</p>
                 )}
@@ -402,6 +416,21 @@ export default function OnboardingPage() {
             )}
           </div>
         )}
+        {contaNome && (
+          <div className="flex items-center gap-2">
+            <span className="hidden text-sm text-[#517193] sm:inline">
+              {contaNome}
+            </span>
+            <button
+              type="button"
+              onClick={sair}
+              className="border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:border-slate-300"
+            >
+              Sair
+            </button>
+          </div>
+        )}
+        </div>
       </div>
 
       {/* Hero claro com ilustração (estilo template) */}

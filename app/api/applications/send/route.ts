@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { logError } from "@/lib/logError";
 import { z } from "zod";
 import { sendApplication } from "@/lib/applications";
+import { denyIfNotOwnerByApplication } from "@/lib/authGuard";
 
 const schema = z.object({
   applicationId: z.string().min(1),
@@ -17,6 +18,8 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Dados inválidos." }, { status: 400 });
   }
   const { applicationId, amount, period, propostaTexto } = parsed.data;
+  const deny = await denyIfNotOwnerByApplication(req, applicationId);
+  if (deny) return deny;
   try {
     const result = await sendApplication(applicationId, {
       amount,

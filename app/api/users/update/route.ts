@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { logError } from "@/lib/logError";
 import { z } from "zod";
 import { updateUserContact } from "@/lib/users";
+import { denyIfNotOwner } from "@/lib/authGuard";
 
 const schema = z.object({
   userId: z.string().min(1),
@@ -18,6 +19,8 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Dados inválidos." }, { status: 400 });
   }
   const { userId, ...data } = parsed.data;
+  const deny = await denyIfNotOwner(req, userId);
+  if (deny) return deny;
   try {
     await updateUserContact(userId, data);
     return Response.json({ ok: true });

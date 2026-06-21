@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { logError } from "@/lib/logError";
 import { getValidToken } from "@/lib/freelancerAuth";
 import { getSelfProfile } from "@/lib/freelancer";
+import { denyIfNotOwner } from "@/lib/authGuard";
 
 /** Lê o perfil atual do usuário no Freelancer (headline, bio, skills). */
 export async function GET(req: NextRequest) {
@@ -9,6 +10,8 @@ export async function GET(req: NextRequest) {
   if (!userId) {
     return Response.json({ error: "userId é obrigatório." }, { status: 400 });
   }
+  const deny = await denyIfNotOwner(req, userId);
+  if (deny) return deny;
   const token = await getValidToken(userId);
   if (!token) {
     return Response.json({ connected: false });

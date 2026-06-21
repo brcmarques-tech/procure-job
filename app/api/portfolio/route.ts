@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { generatePortfolio, buildContato } from "@/lib/portfolio";
 import { slugify } from "@/lib/slug";
 import type { ProfileDraft } from "@/lib/profile";
+import { denyIfNotOwner } from "@/lib/authGuard";
 
 const schema = z.object({
   userId: z.string().min(1),
@@ -21,6 +22,8 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Dados inválidos." }, { status: 400 });
   }
   const { userId, instrucoes } = parsed.data;
+  const deny = await denyIfNotOwner(req, userId);
+  if (deny) return deny;
 
   const user = await prisma.user.findUnique({
     where: { id: userId },

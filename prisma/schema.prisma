@@ -12,20 +12,39 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Conta de acesso à ferramenta (login por nome + senha). Cada conta vê só os
+// perfis (User) dela. Cadastro protegido por senha mestre (env MASTER_PASSWORD).
+model Account {
+  id        String   @id @default(cuid())
+  nome      String   @unique // identificador de login
+  senhaHash String // scrypt: "salt:hash"
+  createdAt DateTime @default(now())
+
+  users User[]
+}
+
 model User {
   id         String   @id @default(cuid())
   nome       String
-  email      String   @unique
+  email      String
   telefone   String? // contato (vira o WhatsApp do portfólio)
   linkedin   String? // URL do LinkedIn (botão do portfólio)
   idiomas    String   @default("[]") // JSON: string[]
   faixaPreco String?
   createdAt  DateTime @default(now())
 
+  // Conta dona do perfil. Nullable: perfis antigos (pré-multiconta) e modo
+  // "aberto" (sem SESSION_SECRET) ficam sem dono até a migração ligá-los.
+  accountId String?
+  account   Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
   profile        Profile?
   portfolio      Portfolio?
   channels       Channel[]
   portfoliosVaga PortfolioVaga[]
+
+  // E-mail único POR conta (duas contas podem usar o mesmo e-mail).
+  @@unique([accountId, email])
 }
 
 model Profile {

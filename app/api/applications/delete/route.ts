@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { logError } from "@/lib/logError";
 import { z } from "zod";
 import { deleteApplication } from "@/lib/applications";
+import { denyIfNotOwnerByApplication } from "@/lib/authGuard";
 
 const schema = z.object({ applicationId: z.string().min(1) });
 
@@ -11,6 +12,8 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return Response.json({ error: "Dados inválidos." }, { status: 400 });
   }
+  const deny = await denyIfNotOwnerByApplication(req, parsed.data.applicationId);
+  if (deny) return deny;
   try {
     const result = await deleteApplication(parsed.data.applicationId);
     return Response.json(result);

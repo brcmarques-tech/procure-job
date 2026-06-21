@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { logError } from "@/lib/logError";
 import { z } from "zod";
 import { prepareJobPortfolio } from "@/lib/jobPortfolio";
+import { denyIfNotOwner } from "@/lib/authGuard";
 
 export const maxDuration = 120;
 
@@ -18,6 +19,8 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Dados inválidos." }, { status: 400 });
   }
   const { userId, externalId, tipo } = parsed.data;
+  const deny = await denyIfNotOwner(req, userId);
+  if (deny) return deny;
   try {
     const r = await prepareJobPortfolio(userId, externalId, tipo ?? "freelancer");
     return Response.json(r);

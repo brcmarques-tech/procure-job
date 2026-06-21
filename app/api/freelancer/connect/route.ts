@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { buildAuthorizeUrl, isOAuthConfigured } from "@/lib/freelancerAuth";
+import { denyIfNotOwner } from "@/lib/authGuard";
 
 /**
  * Inicia o fluxo OAuth2 do Freelancer. Recebe ?userId= e redireciona o
@@ -10,6 +11,8 @@ export async function GET(req: NextRequest) {
   if (!userId) {
     return Response.json({ error: "userId é obrigatório." }, { status: 400 });
   }
+  const deny = await denyIfNotOwner(req, userId);
+  if (deny) return deny;
   if (!isOAuthConfigured()) {
     return Response.json(
       {
