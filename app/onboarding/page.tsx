@@ -307,7 +307,28 @@ export default function OnboardingPage() {
             </button>
 
             {perfisOpen && (
-              <div className="fixed inset-x-2 bottom-2 top-auto z-40 max-h-[75vh] w-auto space-y-2 overflow-auto border border-slate-200 bg-white p-3 shadow-lg safe-bottom sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:max-h-[70vh] sm:w-[min(20rem,calc(100vw-2rem))] sm:p-3 sm:pb-3">
+              <>
+                {/* Backdrop escurecido — só no mobile; toque fora fecha. */}
+                <div
+                  aria-hidden
+                  onClick={() => setPerfisOpen(false)}
+                  className="fixed inset-0 z-30 bg-black/40 sm:hidden"
+                />
+                <div className="sheet-in fixed inset-x-0 bottom-0 top-auto z-40 max-h-[80vh] w-auto space-y-2 overflow-auto border-t border-slate-200 bg-white p-3 shadow-lg safe-bottom sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:max-h-[70vh] sm:w-[min(20rem,calc(100vw-2rem))] sm:border sm:pb-3">
+                  {/* Cabeçalho do bottom-sheet — só no mobile. */}
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2 sm:hidden">
+                    <span className="text-sm font-semibold text-[#151D26]">
+                      Meus perfis
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPerfisOpen(false)}
+                      aria-label="Fechar"
+                      className="px-2 py-1 text-lg leading-none text-slate-400 transition hover:text-slate-600"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 {perfisMsg && (
                   <p className="text-xs text-slate-600">{perfisMsg}</p>
                 )}
@@ -416,7 +437,8 @@ export default function OnboardingPage() {
                     </div>
                   ))
                 )}
-              </div>
+                </div>
+              </>
             )}
           </div>
         )}

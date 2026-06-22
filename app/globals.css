@@ -69,6 +69,20 @@ body {
 .safe-bottom {
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
 }
+
+/* Bottom-sheet: sobe da borda inferior no mobile. No desktop (dropdown) não anima. */
+@keyframes sheetIn {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.sheet-in {
+  animation: sheetIn 0.22s ease-out;
+}
+@media (min-width: 640px) {
+  .sheet-in {
+    animation: none;
+  }
+}
 .safe-top {
   padding-top: max(0px, env(safe-area-inset-top));
 }
