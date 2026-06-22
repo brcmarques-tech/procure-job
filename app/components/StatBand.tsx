@@ -16,7 +16,7 @@ export default function StatBand({
       {items.map((it, i) => (
         <div
           key={it.label}
-          className={`px-3 py-5 text-center sm:px-5 sm:py-7 ${
+          className={`px-3 py-4 text-center sm:px-5 sm:py-7 ${
             i > 0 ? "border-l border-[#EBEBEB]" : ""
           } ${i >= 2 ? "border-t border-[#EBEBEB] sm:border-t-0" : ""}`}
         >

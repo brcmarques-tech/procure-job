@@ -31,10 +31,11 @@ export async function GET(
 /* Baseline responsivo — blinda o layout no celular mesmo se o CSS gerado
    escorregar (sem overflow horizontal; imagens/mídia nunca estouram). */
 *,*::before,*::after{box-sizing:border-box}
-html{font-size:16px;-webkit-text-size-adjust:100%}
+html{font-size:16px;-webkit-text-size-adjust:100%;scroll-behavior:smooth}
 html,body{max-width:100%;overflow-x:hidden}
 body{margin:0;padding:0}
 img,svg,video,canvas,iframe{max-width:100%;height:auto}
+a,button{-webkit-tap-highlight-color:transparent}
 /* Links/palavras longas nunca forçam scroll horizontal no celular. */
 a,p,h1,h2,h3,li{overflow-wrap:anywhere}
 </style>

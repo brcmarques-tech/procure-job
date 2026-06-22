@@ -307,7 +307,7 @@ export default function OnboardingPage() {
             </button>
 
             {perfisOpen && (
-              <div className="absolute right-0 top-full z-30 mt-2 max-h-[70vh] w-[min(20rem,calc(100vw-2rem))] space-y-2 overflow-auto border border-slate-200 bg-white p-3 shadow-lg">
+              <div className="fixed inset-x-2 bottom-2 top-auto z-40 max-h-[75vh] w-auto space-y-2 overflow-auto border border-slate-200 bg-white p-3 shadow-lg safe-bottom sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:max-h-[70vh] sm:w-[min(20rem,calc(100vw-2rem))] sm:p-3 sm:pb-3">
                 {perfisMsg && (
                   <p className="text-xs text-slate-600">{perfisMsg}</p>
                 )}
@@ -368,7 +368,7 @@ export default function OnboardingPage() {
                               setEditForm((f) => ({ ...f, nome: e.target.value }))
                             }
                             placeholder="Nome"
-                            className="block w-full rounded border border-slate-300 px-2 py-1 text-xs outline-none focus:border-[#3398DB]"
+                            className="block w-full rounded border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#3398DB]"
                           />
                           <input
                             type="email"
@@ -380,7 +380,7 @@ export default function OnboardingPage() {
                               }))
                             }
                             placeholder="Email"
-                            className="block w-full rounded border border-slate-300 px-2 py-1 text-xs outline-none focus:border-[#3398DB]"
+                            className="block w-full rounded border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#3398DB]"
                           />
                           <input
                             value={editForm.telefone}
@@ -391,7 +391,7 @@ export default function OnboardingPage() {
                               }))
                             }
                             placeholder="Telefone / WhatsApp"
-                            className="block w-full rounded border border-slate-300 px-2 py-1 text-xs outline-none focus:border-[#3398DB]"
+                            className="block w-full rounded border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#3398DB]"
                           />
                           <input
                             value={editForm.linkedin}
@@ -402,7 +402,7 @@ export default function OnboardingPage() {
                               }))
                             }
                             placeholder="LinkedIn (URL)"
-                            className="block w-full rounded border border-slate-300 px-2 py-1 text-xs outline-none focus:border-[#3398DB]"
+                            className="block w-full rounded border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#3398DB]"
                           />
                           <button
                             onClick={saveEdit}
@@ -439,7 +439,7 @@ export default function OnboardingPage() {
 
       {/* Hero claro com ilustração (estilo template) */}
       <header className="border-b border-[#EBEBEB] bg-gradient-to-bl from-[#fdece6] via-white to-white">
-        <div className="mx-auto grid max-w-5xl grid-cols-1 items-center gap-8 px-4 py-12 sm:px-6 sm:py-16 md:grid-cols-[1fr_auto]">
+        <div className="mx-auto grid max-w-5xl grid-cols-1 items-center gap-6 px-4 py-10 sm:gap-8 sm:px-6 sm:py-16 lg:grid-cols-[1fr_auto]">
           <div>
             <p className="eyebrow">Perfil · Passo 1</p>
             <h1 className="mt-3 text-3xl font-bold tracking-tight text-[#151D26] sm:text-4xl md:text-5xl">
@@ -454,7 +454,7 @@ export default function OnboardingPage() {
           <img
             src="/illustrations/data-extraction.png"
             alt=""
-            className="hidden w-[300px] justify-self-end md:block lg:w-[360px]"
+            className="hidden w-[300px] justify-self-end lg:block lg:w-[360px]"
           />
         </div>
       </header>

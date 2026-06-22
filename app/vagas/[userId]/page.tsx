@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import Stepper from "@/app/components/Stepper";
 import StatBand from "@/app/components/StatBand";
 import Footer from "@/app/components/Footer";
@@ -752,8 +753,10 @@ export default function VagasPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-5xl px-4 pt-6 sm:px-6">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.svg" alt="Procure.job" className="h-7 w-auto" />
+        <Link href="/onboarding" className="inline-block transition active:opacity-70">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.svg" alt="Procure.job" className="h-7 w-auto" />
+        </Link>
       </div>
       <div className="mx-auto max-w-5xl px-4 pt-3 sm:px-6">
         <Stepper current="vagas" userId={userId} />
@@ -761,7 +764,7 @@ export default function VagasPage() {
 
       {/* Hero corporate (claro, com ilustração — estilo template) */}
       <header className="border-b border-[#EBEBEB] bg-gradient-to-bl from-[#fdece6] via-white to-white">
-        <div className="mx-auto grid max-w-5xl grid-cols-1 items-center gap-8 px-4 py-12 sm:px-6 sm:py-16 md:grid-cols-[1fr_auto]">
+        <div className="mx-auto grid max-w-5xl grid-cols-1 items-center gap-6 px-4 py-10 sm:gap-8 sm:px-6 sm:py-16 lg:grid-cols-[1fr_auto]">
           <div>
             <p className="eyebrow">Candidaturas</p>
             <h1 className="mt-3 text-3xl font-bold tracking-tight text-[#151D26] sm:text-4xl md:text-5xl">
@@ -782,7 +785,7 @@ export default function VagasPage() {
           <img
             src="/illustrations/connected-world.png"
             alt=""
-            className="hidden w-[300px] justify-self-end md:block lg:w-[360px]"
+            className="hidden w-[300px] justify-self-end lg:block lg:w-[360px]"
           />
         </div>
 
@@ -801,7 +804,7 @@ export default function VagasPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl space-y-6 px-4 pb-20 pt-8 sm:px-6">
+      <main className="mx-auto max-w-5xl space-y-4 px-4 pb-20 pt-6 sm:space-y-6 sm:px-6 sm:pt-8">
 
       {/* Caça de vagas */}
       <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-8">
@@ -858,7 +861,7 @@ export default function VagasPage() {
         </button>
 
         {(huntLoading || huntLog.length > 0) && (
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <div className="max-h-80 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-4 sm:max-h-none">
             <div className="flex items-center gap-2 text-sm font-medium">
               {huntLoading ? (
                 <>
@@ -971,7 +974,7 @@ export default function VagasPage() {
                           savedIds.includes(job.externalId)
                         }
                         title="Salvar em Minhas vagas"
-                        className="mt-1 border border-slate-300 px-2 py-0.5 text-xs text-slate-600 transition hover:border-[#3398DB] disabled:opacity-60"
+                        className="mt-1 border border-slate-300 px-2.5 py-1.5 text-xs text-slate-600 transition hover:border-[#3398DB] disabled:opacity-60"
                       >
                         {savedIds.includes(job.externalId)
                           ? "✓ Salva"
@@ -1113,7 +1116,7 @@ export default function VagasPage() {
                                     },
                                   }))
                                 }
-                                className="mt-1 block w-28 rounded-lg border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-[#3398DB]"
+                                className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-[#3398DB] sm:w-28 sm:py-1.5"
                               />
                             </label>
                             <label className="text-xs text-slate-500">
@@ -1131,7 +1134,7 @@ export default function VagasPage() {
                                     },
                                   }))
                                 }
-                                className="mt-1 block w-24 rounded-lg border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-[#3398DB]"
+                                className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-[#3398DB] sm:w-24 sm:py-1.5"
                               />
                             </label>
                             {job.budget && (
@@ -1250,7 +1253,7 @@ export default function VagasPage() {
         </button>
 
         {(rmLoading || rmLog.length > 0) && (
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <div className="max-h-80 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-4 sm:max-h-none">
             <div className="flex items-center gap-2 text-sm font-medium">
               {rmLoading ? (
                 <>
@@ -1332,7 +1335,7 @@ export default function VagasPage() {
                           savedIds.includes(job.externalId)
                         }
                         title="Salvar em Minhas vagas"
-                        className="mt-1 border border-slate-300 px-2 py-0.5 text-xs text-slate-600 transition hover:border-[#3398DB] disabled:opacity-60"
+                        className="mt-1 border border-slate-300 px-2.5 py-1.5 text-xs text-slate-600 transition hover:border-[#3398DB] disabled:opacity-60"
                       >
                         {savedIds.includes(job.externalId)
                           ? "✓ Salva"
@@ -1698,7 +1701,7 @@ export default function VagasPage() {
                         onClick={() => excluirJob(v.id)}
                         disabled={mvDelId === v.id}
                         title="Excluir do banco"
-                        className="border border-slate-300 px-2 py-1 text-xs text-red-600 transition hover:border-red-400 disabled:opacity-50"
+                        className="border border-slate-300 px-3 py-2 text-xs text-red-600 transition hover:border-red-400 disabled:opacity-50"
                       >
                         {mvDelId === v.id ? "..." : "🗑"}
                       </button>
@@ -1762,7 +1765,7 @@ export default function VagasPage() {
                                     },
                                   }))
                                 }
-                                className="mt-1 block w-28 rounded-lg border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-[#3398DB]"
+                                className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-[#3398DB] sm:w-28 sm:py-1.5"
                               />
                             </label>
                             <label className="text-xs text-slate-500">
@@ -1780,7 +1783,7 @@ export default function VagasPage() {
                                     },
                                   }))
                                 }
-                                className="mt-1 block w-24 rounded-lg border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-[#3398DB]"
+                                className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-[#3398DB] sm:w-24 sm:py-1.5"
                               />
                             </label>
                           </div>

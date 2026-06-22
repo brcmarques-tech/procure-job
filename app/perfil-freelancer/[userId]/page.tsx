@@ -32,7 +32,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
       }}
-      className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium hover:border-black"
+      className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:border-black sm:px-3 sm:py-1.5"
     >
       {copied ? "✓ Copiado" : label}
     </button>
@@ -151,7 +151,7 @@ export default function PerfilFreelancerPage() {
         </div>
         <button
           onClick={() => router.push(`/vagas/${userId}`)}
-          className="shrink-0 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:border-black"
+          className="shrink-0 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium hover:border-black sm:py-2"
         >
           ← Vagas
         </button>
@@ -177,7 +177,7 @@ export default function PerfilFreelancerPage() {
         <>
           {/* Perfil atual */}
           {profile && (
-            <section className="mt-8 rounded-lg border border-gray-200 p-5">
+            <section className="mt-8 rounded-lg border border-gray-200 p-4 sm:p-5">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
                 Perfil atual — @{profile.username}
               </h2>

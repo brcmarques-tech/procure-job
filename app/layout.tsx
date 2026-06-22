@@ -15,11 +15,27 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Procure.job",
   description: "IA que encontra vagas e prepara suas candidaturas.",
+  manifest: "/manifest.json",
+  applicationName: "Procure.job",
+  appleWebApp: {
+    capable: true,
+    title: "Procure.job",
+    statusBarStyle: "default",
+  },
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon-app.svg",
+  },
+  formatDetection: { telephone: false, email: false, address: false },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  // Permite que o conteúdo ocupe a tela toda (atrás do notch); o safe-area
+  // é tratado no CSS. Deixa o app com cara de tela cheia no celular.
+  viewportFit: "cover",
+  themeColor: "#3398db",
 };
 
 export default function RootLayout({

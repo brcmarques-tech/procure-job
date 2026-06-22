@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import Stepper from "@/app/components/Stepper";
 import StatBand from "@/app/components/StatBand";
 import Footer from "@/app/components/Footer";
@@ -167,8 +168,10 @@ export default function PortfolioPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-3xl px-4 pt-6 sm:px-6">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.svg" alt="Procure.job" className="h-7 w-auto" />
+        <Link href="/onboarding" className="inline-block transition active:opacity-70">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.svg" alt="Procure.job" className="h-7 w-auto" />
+        </Link>
       </div>
       <div className="mx-auto max-w-3xl px-4 pt-3 sm:px-6">
         <Stepper current="portfolio" userId={userId} />
@@ -176,7 +179,7 @@ export default function PortfolioPage() {
 
       {/* Hero claro com ilustração (estilo template) */}
       <header className="border-b border-[#EBEBEB] bg-gradient-to-bl from-[#fdece6] via-white to-white">
-        <div className="mx-auto grid max-w-4xl grid-cols-1 items-center gap-8 px-4 py-12 sm:px-6 sm:py-16 md:grid-cols-[1fr_auto]">
+        <div className="mx-auto grid max-w-4xl grid-cols-1 items-center gap-6 px-4 py-10 sm:gap-8 sm:px-6 sm:py-16 lg:grid-cols-[1fr_auto]">
           <div>
             <p className="eyebrow">Portfólio</p>
             <h1 className="mt-3 text-3xl font-bold tracking-tight text-[#151D26] sm:text-4xl md:text-5xl">
@@ -197,7 +200,7 @@ export default function PortfolioPage() {
           <img
             src="/illustrations/operating-system.png"
             alt=""
-            className="hidden w-[300px] justify-self-end md:block lg:w-[360px]"
+            className="hidden w-[300px] justify-self-end lg:block lg:w-[360px]"
           />
         </div>
 
@@ -270,7 +273,7 @@ export default function PortfolioPage() {
         )}
 
         {images.length > 0 && (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
             {images.map((img) => (
               // eslint-disable-next-line @next/next/no-img-element
               <figure key={img.role} className="space-y-1">

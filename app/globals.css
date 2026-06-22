@@ -34,6 +34,45 @@ body {
   border-radius: 0 !important;
 }
 
+/* ===== Cara de app no celular ===== */
+/* Sem flash cinza ao tocar (iOS/Android) — feedback fica por conta do :active/hover. */
+a,
+button,
+input,
+select,
+textarea,
+[role="button"] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Não deixa o "bounce"/scroll vazar pra fora do app; scroll com inércia no iOS. */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* No celular, todo input/textarea/select com >=16px evita o zoom automático do
+   iOS ao focar (a maior causa de "cara de site" em vez de app). Só no mobile —
+   o desktop mantém os tamanhos finos (text-xs/text-sm). */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Utilitário: barra de ação fixa no rodapé respeitando o notch/safe-area. */
+.safe-bottom {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+.safe-top {
+  padding-top: max(0px, env(safe-area-inset-top));
+}
+
 /* Rótulos/eyebrows em mono caixa-alta — a "assinatura" tech-corporate do template. */
 .eyebrow {
   font-family: var(--font-geist-mono), monospace;
