@@ -213,12 +213,12 @@ export default function OnboardingPage() {
     const algumaResposta = respostas.some((r) => r.trim());
     return (
       <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-2xl px-6 pt-8">
+      <div className="mx-auto max-w-2xl px-4 pt-8 sm:px-6">
         <Stepper current="perfil" />
       </div>
-      <main className="mx-auto max-w-2xl px-6 py-12">
+      <main className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
         <p className="eyebrow">Perfil · Completar</p>
-        <h1 className="mt-3 text-4xl font-bold tracking-tight text-[#151D26]">
+        <h1 className="mt-3 text-3xl font-bold tracking-tight text-[#151D26] sm:text-4xl">
           Vamos deixar seu perfil forte
         </h1>
         <p className="mt-2 text-slate-500">
@@ -331,13 +331,13 @@ export default function OnboardingPage() {
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         <button
                           onClick={() => router.push(`/portfolio/${p.id}`)}
-                          className="border border-[#3398DB] px-2 py-1 text-xs font-medium text-[#3398DB] transition hover:bg-[#3398DB] hover:text-white"
+                          className="border border-[#3398DB] px-2.5 py-1.5 text-xs font-medium text-[#3398DB] transition hover:bg-[#3398DB] hover:text-white"
                         >
                           Portfólio
                         </button>
                         <button
                           onClick={() => router.push(`/vagas/${p.id}`)}
-                          className="border border-slate-300 px-2 py-1 text-xs text-slate-600 transition hover:border-slate-400"
+                          className="border border-slate-300 px-2.5 py-1.5 text-xs text-slate-600 transition hover:border-slate-400"
                         >
                           Vagas
                         </button>
@@ -346,7 +346,7 @@ export default function OnboardingPage() {
                           onClick={() =>
                             editId === p.id ? setEditId(null) : startEdit(p)
                           }
-                          className="border border-slate-300 px-2 py-1 text-xs text-slate-600 transition hover:border-slate-400"
+                          className="border border-slate-300 px-2.5 py-1.5 text-xs text-slate-600 transition hover:border-slate-400"
                         >
                           {editId === p.id ? "Fechar" : "⚙"}
                         </button>
@@ -354,7 +354,7 @@ export default function OnboardingPage() {
                           title="Excluir perfil"
                           onClick={() => removePerfil(p)}
                           disabled={busyId === p.id}
-                          className="border border-slate-300 px-2 py-1 text-xs text-red-600 transition hover:border-red-400 disabled:opacity-50"
+                          className="border border-slate-300 px-2.5 py-1.5 text-xs text-red-600 transition hover:border-red-400 disabled:opacity-50"
                         >
                           {busyId === p.id ? "..." : "🗑"}
                         </button>
@@ -439,10 +439,10 @@ export default function OnboardingPage() {
 
       {/* Hero claro com ilustração (estilo template) */}
       <header className="border-b border-[#EBEBEB] bg-gradient-to-bl from-[#fdece6] via-white to-white">
-        <div className="mx-auto grid max-w-5xl grid-cols-1 items-center gap-8 px-6 py-16 md:grid-cols-[1fr_auto]">
+        <div className="mx-auto grid max-w-5xl grid-cols-1 items-center gap-8 px-4 py-12 sm:px-6 sm:py-16 md:grid-cols-[1fr_auto]">
           <div>
             <p className="eyebrow">Perfil · Passo 1</p>
-            <h1 className="mt-3 text-4xl font-bold tracking-tight text-[#151D26] sm:text-5xl">
+            <h1 className="mt-3 text-3xl font-bold tracking-tight text-[#151D26] sm:text-4xl md:text-5xl">
               Conte sobre você
             </h1>
             <p className="mt-4 max-w-lg text-[#517193]">
@@ -459,7 +459,7 @@ export default function OnboardingPage() {
         </div>
       </header>
 
-    <main className="mx-auto max-w-2xl px-6 py-12">
+    <main className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
       <form
         onSubmit={handleSubmit}
         className="space-y-4 border border-slate-200 bg-white p-6 shadow-sm sm:p-8"

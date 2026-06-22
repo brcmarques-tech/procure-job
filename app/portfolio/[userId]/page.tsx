@@ -141,7 +141,7 @@ export default function PortfolioPage() {
 
   if (loadingProfile) {
     return (
-      <main className="mx-auto max-w-3xl px-6 py-12 text-slate-500">
+      <main className="mx-auto max-w-3xl px-4 py-12 text-slate-500 sm:px-6">
         Carregando perfil...
       </main>
     );
@@ -149,7 +149,7 @@ export default function PortfolioPage() {
 
   if (loadError || !profile) {
     return (
-      <main className="mx-auto max-w-3xl px-6 py-12">
+      <main className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
         <Stepper current="portfolio" />
         <div className="mt-8 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-red-700">
           {loadError ?? "Perfil não encontrado."}
@@ -166,20 +166,20 @@ export default function PortfolioPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-3xl px-6 pt-6">
+      <div className="mx-auto max-w-3xl px-4 pt-6 sm:px-6">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo.svg" alt="Procure.job" className="h-7 w-auto" />
       </div>
-      <div className="mx-auto max-w-3xl px-6 pt-3">
+      <div className="mx-auto max-w-3xl px-4 pt-3 sm:px-6">
         <Stepper current="portfolio" userId={userId} />
       </div>
 
       {/* Hero claro com ilustração (estilo template) */}
       <header className="border-b border-[#EBEBEB] bg-gradient-to-bl from-[#fdece6] via-white to-white">
-        <div className="mx-auto grid max-w-4xl grid-cols-1 items-center gap-8 px-6 py-16 md:grid-cols-[1fr_auto]">
+        <div className="mx-auto grid max-w-4xl grid-cols-1 items-center gap-8 px-4 py-12 sm:px-6 sm:py-16 md:grid-cols-[1fr_auto]">
           <div>
             <p className="eyebrow">Portfólio</p>
-            <h1 className="mt-3 text-4xl font-bold tracking-tight text-[#151D26] sm:text-5xl">
+            <h1 className="mt-3 text-3xl font-bold tracking-tight text-[#151D26] sm:text-4xl md:text-5xl">
               Seu portfólio
             </h1>
             <p className="mt-4 max-w-lg text-[#517193]">
@@ -202,7 +202,7 @@ export default function PortfolioPage() {
         </div>
 
         {/* Banda de stats do perfil */}
-        <div className="mx-auto max-w-4xl px-6 pb-12">
+        <div className="mx-auto max-w-4xl px-4 pb-12 sm:px-6">
           <StatBand
             cols="sm:grid-cols-3"
             items={[
@@ -214,7 +214,7 @@ export default function PortfolioPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl px-6 pb-20 pt-8">
+      <main className="mx-auto max-w-4xl px-4 pb-20 pt-8 sm:px-6">
       <div>
         <ProfileSummary nome={nome} profile={profile} />
       </div>
@@ -279,7 +279,7 @@ export default function PortfolioPage() {
                   alt={img.role}
                   className="aspect-[3/4] w-full rounded-lg border border-slate-200 object-cover"
                 />
-                <figcaption className="flex items-center justify-between text-xs text-slate-400">
+                <figcaption className="flex flex-wrap items-center justify-between gap-1 text-xs text-slate-400">
                   <span>{img.role}</span>
                   <button
                     onClick={() => regenOne(img.role)}
@@ -343,7 +343,7 @@ export default function PortfolioPage() {
             <iframe
               title="Pré-visualização do portfólio"
               srcDoc={pfDoc}
-              className="h-[420px] w-full rounded-lg border border-slate-300 sm:h-[600px]"
+              className="h-[300px] w-full rounded-lg border border-slate-300 sm:h-[420px] md:h-[600px]"
             />
           </div>
         )}

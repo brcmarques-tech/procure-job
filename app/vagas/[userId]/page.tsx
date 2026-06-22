@@ -726,7 +726,7 @@ export default function VagasPage() {
 
   if (loadingProfile) {
     return (
-      <main className="mx-auto max-w-3xl px-6 py-12 text-slate-500">
+      <main className="mx-auto max-w-3xl px-4 py-12 text-slate-500 sm:px-6">
         Carregando...
       </main>
     );
@@ -734,7 +734,7 @@ export default function VagasPage() {
 
   if (loadError) {
     return (
-      <main className="mx-auto max-w-3xl px-6 py-12">
+      <main className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
         <Stepper current="vagas" />
         <div className="mt-8 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-red-700">
           {loadError}
@@ -751,20 +751,20 @@ export default function VagasPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-5xl px-6 pt-6">
+      <div className="mx-auto max-w-5xl px-4 pt-6 sm:px-6">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo.svg" alt="Procure.job" className="h-7 w-auto" />
       </div>
-      <div className="mx-auto max-w-5xl px-6 pt-3">
+      <div className="mx-auto max-w-5xl px-4 pt-3 sm:px-6">
         <Stepper current="vagas" userId={userId} />
       </div>
 
       {/* Hero corporate (claro, com ilustração — estilo template) */}
       <header className="border-b border-[#EBEBEB] bg-gradient-to-bl from-[#fdece6] via-white to-white">
-        <div className="mx-auto grid max-w-5xl grid-cols-1 items-center gap-8 px-6 py-16 md:grid-cols-[1fr_auto]">
+        <div className="mx-auto grid max-w-5xl grid-cols-1 items-center gap-8 px-4 py-12 sm:px-6 sm:py-16 md:grid-cols-[1fr_auto]">
           <div>
             <p className="eyebrow">Candidaturas</p>
-            <h1 className="mt-3 text-4xl font-bold tracking-tight text-[#151D26] sm:text-5xl">
+            <h1 className="mt-3 text-3xl font-bold tracking-tight text-[#151D26] sm:text-4xl md:text-5xl">
               Vagas e candidaturas
             </h1>
             <p className="mt-4 max-w-xl text-[#517193]">
@@ -787,7 +787,7 @@ export default function VagasPage() {
         </div>
 
         {/* Banda de stats — funil de candidaturas */}
-        <div className="mx-auto max-w-5xl px-6 pb-12">
+        <div className="mx-auto max-w-5xl px-4 pb-12 sm:px-6">
           <StatBand
             cols="sm:grid-cols-5"
             items={[
@@ -801,10 +801,10 @@ export default function VagasPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl space-y-6 px-6 pb-20 pt-8">
+      <main className="mx-auto max-w-5xl space-y-6 px-4 pb-20 pt-8 sm:px-6">
 
       {/* Caça de vagas */}
-      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-8">
         <h2 className="text-2xl font-bold text-[#151D26]">Caça de vagas (Freelancer.com)</h2>
         <p className="text-slate-500">
           Vagas com compatibilidade abaixo de 60 são descartadas.
@@ -1179,7 +1179,7 @@ export default function VagasPage() {
       </section>
 
       {/* Vagas remotas (busca automática) */}
-      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-8">
         <h2 className="text-2xl font-bold text-[#151D26]">
           Vagas remotas (busca automática)
         </h2>
@@ -1443,7 +1443,7 @@ export default function VagasPage() {
       </section>
 
       {/* Outras plataformas (copiloto) */}
-      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-8">
         <h2 className="text-2xl font-bold text-[#151D26]">Outras plataformas (copiloto)</h2>
         <p className="text-slate-500">
           LinkedIn, Workana, Upwork e outros não têm API aberta — então você
@@ -1547,7 +1547,7 @@ export default function VagasPage() {
       </section>
 
       {/* Minhas vagas (curtidas + acompanhadas) */}
-      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-2xl font-bold text-[#151D26]">Minhas vagas</h2>
           <div className="flex flex-wrap items-center gap-2">

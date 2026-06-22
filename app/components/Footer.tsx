@@ -18,13 +18,13 @@ export default function Footer({
       <div className="mx-auto max-w-5xl px-6 py-14">
         {ctaTitle && (
           <div className="flex flex-col items-start justify-between gap-6 border-b border-white/10 pb-12 sm:flex-row sm:items-center">
-            <h2 className="max-w-md text-3xl font-bold tracking-tight">
+            <h2 className="max-w-md text-2xl font-bold tracking-tight sm:text-3xl">
               {ctaTitle}
             </h2>
             {ctaLabel && onCta && (
               <button
                 onClick={onCta}
-                className="bg-[#3398DB] px-6 py-3 font-semibold text-white transition hover:bg-[#2b82c2]"
+                className="w-full bg-[#3398DB] px-6 py-3 font-semibold text-white transition hover:bg-[#2b82c2] sm:w-auto"
               >
                 {ctaLabel}
               </button>

@@ -28,19 +28,19 @@ export default function Stepper({
   };
 
   return (
-    <nav className="flex items-center gap-2 text-sm">
+    <nav className="flex flex-wrap items-center gap-1 text-xs sm:gap-2 sm:text-sm">
       {STEPS.map((s, i) => {
         const active = s.key === current;
         const to = href(s.key);
         const base =
-          "rounded-full px-3 py-1 font-medium " +
+          "rounded-full px-2 py-1 font-medium sm:px-3 " +
           (active
             ? "bg-[#3398DB] text-white"
             : to
               ? "text-slate-600 hover:bg-slate-100"
               : "text-slate-300");
         return (
-          <span key={s.key} className="flex items-center gap-2">
+          <span key={s.key} className="flex items-center gap-1 sm:gap-2">
             {to && !active ? (
               <Link href={to} className={base}>
                 {s.label}

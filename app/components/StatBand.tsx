@@ -20,7 +20,7 @@ export default function StatBand({
             i > 0 ? "border-l border-[#EBEBEB]" : ""
           } ${i >= 2 ? "border-t border-[#EBEBEB] sm:border-t-0" : ""}`}
         >
-          <div className="text-2xl font-bold tracking-tight text-[#151D26] sm:text-4xl">
+          <div className="text-xl font-bold tracking-tight text-[#151D26] sm:text-3xl md:text-4xl">
             {it.value}
           </div>
           <div className="mt-1 text-sm text-[#517193]">{it.label}</div>

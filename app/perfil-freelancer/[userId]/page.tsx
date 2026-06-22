@@ -133,17 +133,17 @@ export default function PerfilFreelancerPage() {
 
   if (loading) {
     return (
-      <main className="mx-auto max-w-3xl px-6 py-12 text-gray-500">
+      <main className="mx-auto max-w-3xl px-4 py-12 text-gray-500 sm:px-6">
         Carregando seu perfil do Freelancer...
       </main>
     );
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-12">
-      <div className="flex items-start justify-between gap-4">
+    <main className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
+      <div className="flex items-start justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Otimizar perfil do Freelancer</h1>
+          <h1 className="text-2xl font-bold sm:text-3xl">Otimizar perfil do Freelancer</h1>
           <p className="mt-2 text-gray-500">
             A IA usa tudo que sabe sobre você para deixar seu perfil mais
             atraente. Você aprova antes de qualquer mudança.
@@ -231,7 +231,7 @@ export default function PerfilFreelancerPage() {
 
               {/* Skills para aplicar (via API) */}
               <section>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="text-lg font-semibold">
                     Skills para adicionar
                   </h3>
@@ -294,7 +294,7 @@ export default function PerfilFreelancerPage() {
 
               {/* Headline (copiar e colar) */}
               <section>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="text-lg font-semibold">Nova headline</h3>
                   <span className="rounded-full bg-amber-50 px-3 py-1 text-xs text-amber-700">
                     copiar e colar no site
@@ -308,7 +308,7 @@ export default function PerfilFreelancerPage() {
 
               {/* Bio (copiar e colar) */}
               <section>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="text-lg font-semibold">Nova bio</h3>
                   <span className="rounded-full bg-amber-50 px-3 py-1 text-xs text-amber-700">
                     copiar e colar no site
