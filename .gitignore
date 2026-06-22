@@ -54,3 +54,8 @@ public/generated/
 
 # Fotos de referencia (privadas, nao versionar)
 data/
+
+# Ferramentas/planos locais — não versionar no repo PÚBLICO (revelam arquitetura/
+# estratégia; não são necessários pro build). Continuam no disco local.
+/scripts/
+/docs/PLANO.md
