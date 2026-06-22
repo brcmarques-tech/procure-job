@@ -1100,7 +1100,7 @@ export default function VagasPage() {
 
                       {app.status !== "enviada" ? (
                         <>
-                          <div className="flex flex-wrap items-end gap-3">
+                          <div className="grid grid-cols-2 items-end gap-3 sm:flex sm:flex-wrap">
                             <label className="text-xs text-slate-500">
                               Valor do lance
                               <input
@@ -1138,7 +1138,7 @@ export default function VagasPage() {
                               />
                             </label>
                             {job.budget && (
-                              <span className="pb-2 text-xs text-slate-400">
+                              <span className="col-span-2 pb-2 text-xs text-slate-400 sm:col-auto">
                                 Orçamento da vaga: {job.budget}
                               </span>
                             )}
@@ -1749,7 +1749,7 @@ export default function VagasPage() {
                             ⚠️ Preparada mas ainda não enviada — envie o lance ou
                             descarte.
                           </p>
-                          <div className="flex flex-wrap items-end gap-3">
+                          <div className="grid grid-cols-2 items-end gap-3 sm:flex sm:flex-wrap">
                             <label className="text-xs text-slate-500">
                               Valor
                               <input
