@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
-import { signSession } from "@/lib/session";
+import { signSession, safeEqual, SESSION_TTL_SECONDS } from "@/lib/session";
 import { SESSION_COOKIE } from "@/lib/authGuard";
 
 export const runtime = "nodejs";
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   const { master, nome, senha } = parsed.data;
 
   const esperada = process.env.MASTER_PASSWORD;
-  if (!esperada || master !== esperada) {
+  if (!esperada || !safeEqual(master, esperada)) {
     return Response.json({ error: "Senha mestre incorreta." }, { status: 401 });
   }
 
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 24 * 30,
+    maxAge: SESSION_TTL_SECONDS,
     secure: process.env.NODE_ENV === "production",
   });
   return res;

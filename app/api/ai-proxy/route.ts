@@ -1,5 +1,7 @@
 import type { NextRequest } from "next/server";
 import { generateTextLocal } from "@/lib/claude";
+import { safeEqual } from "@/lib/session";
+import { logError } from "@/lib/logError";
 
 export const runtime = "nodejs";
 export const maxDuration = 300; // a IA pode demorar (sessão da assinatura)
@@ -10,9 +12,11 @@ export const maxDuration = 300; // a IA pode demorar (sessão da assinatura)
  * Roda generateTextLocal direto (nunca re-encaminha), evitando loop.
  */
 export async function POST(req: NextRequest) {
-  if (
-    req.headers.get("x-ai-proxy-secret") !== (process.env.AI_PROXY_SECRET ?? "")
-  ) {
+  // Falha FECHADA: sem segredo configurado (ou header ausente/errado) → 401.
+  // Comparação timing-safe pra não vazar o segredo por tempo de resposta.
+  const secret = process.env.AI_PROXY_SECRET;
+  const provided = req.headers.get("x-ai-proxy-secret");
+  if (!secret || !provided || !safeEqual(provided, secret)) {
     return Response.json({ error: "Não autorizado." }, { status: 401 });
   }
   const body = await req.json().catch(() => null);
@@ -28,6 +32,7 @@ export async function POST(req: NextRequest) {
     });
     return Response.json({ text });
   } catch (e) {
-    return Response.json({ error: (e as Error).message }, { status: 502 });
+    logError("api/ai-proxy", e);
+    return Response.json({ error: "Falha na IA local." }, { status: 502 });
   }
 }

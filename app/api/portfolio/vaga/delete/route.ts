@@ -23,6 +23,6 @@ export async function POST(req: NextRequest) {
     return Response.json({ ok: true });
   } catch (e) {
     logError("api/portfolio/vaga/delete", e, { userId, jobId });
-    return Response.json({ error: (e as Error).message }, { status: 500 });
+    return Response.json({ error: "Erro interno. Tente novamente." }, { status: 500 });
   }
 }

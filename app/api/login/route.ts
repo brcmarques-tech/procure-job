@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { verifyPassword } from "@/lib/password";
-import { signSession } from "@/lib/session";
+import { signSession, SESSION_TTL_SECONDS } from "@/lib/session";
 import { SESSION_COOKIE } from "@/lib/authGuard";
 
 export const runtime = "nodejs";
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 24 * 30, // 30 dias
+    maxAge: SESSION_TTL_SECONDS, // 30 dias (igual à expiração da assinatura)
     secure: process.env.NODE_ENV === "production",
   });
   return res;

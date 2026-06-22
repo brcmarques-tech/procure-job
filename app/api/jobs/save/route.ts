@@ -34,6 +34,6 @@ export async function POST(req: NextRequest) {
     return Response.json({ ok: true, jobId: job.id });
   } catch (e) {
     logError("api/jobs/save", e);
-    return Response.json({ error: (e as Error).message }, { status: 500 });
+    return Response.json({ error: "Erro interno. Tente novamente." }, { status: 500 });
   }
 }

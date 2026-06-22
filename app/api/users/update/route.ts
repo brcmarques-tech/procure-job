@@ -33,6 +33,6 @@ export async function POST(req: NextRequest) {
       );
     }
     logError("api/users/update", e, { userId });
-    return Response.json({ error: (e as Error).message }, { status: 500 });
+    return Response.json({ error: "Erro interno. Tente novamente." }, { status: 500 });
   }
 }

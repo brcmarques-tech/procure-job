@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
         send({ type: "result", mode: result.mode, jobs: result.jobs });
       } catch (e) {
         logError("api/jobs/hunt/stream", e);
-        send({ type: "error", message: (e as Error).message });
+        send({ type: "error", message: "Erro ao buscar vagas. Tente novamente." });
       } finally {
         clearInterval(ticks);
         send({ type: "done" });
